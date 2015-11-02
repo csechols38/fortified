@@ -1,0 +1,140 @@
+<?php
+
+
+/*
+ * Implements hook_menu()
+ *
+ */
+function registration_menu() {
+	$items['account/register/%'] = array(
+		'page callback' => 'registration_register_form',
+		'page arguments' => array(2),
+		'access callback' => TRUE,
+		'type' => MENU_NORMAL_ITEM,
+	);
+	return $items;
+}
+
+
+function registration_register_form($customer_id){
+	if($customer_id){
+		 $form = ipdatatel_add('customer');
+		 return array(
+		 	'#markup' => drupal_render($form),
+		 );
+	} else {
+		return array(
+			'#markup' => t('You do not have a valid user ID'),
+		);
+	}
+}
+
+
+function registration_cust_mod_submit($form, &$form_state){
+	global $user;
+	$values = $form_state['values'];
+	$ipdatatel = new Ipdatatel('cust_mod');
+	$create = $ipdatatel->editCustomer($values, $form_state['user_id'])->sendData();
+	dpm($create);
+	dpm($ipdatatel);
+}
+
+
+
+
+function registration_form_alter(&$form, &$form_state, $form_id){
+	if($form_id == 'user_register_form'){
+		$form['field_reg_account_id']['#access'] = FALSE;
+		if(empty($_GET['verification'])){
+			form_set_error('form', 'You do not have a validation number.');
+		} else {
+			$varification_id = registration_validate_validation_id($_GET['verification']);
+			if($varification_id){
+				if($cust = node_load($varification_id->nid)){
+					//$form['account']['name']['#disabled'] = true;
+					$form['account']['name']['#default_value'] = $cust->title;
+					$form['account']['mail']['#default_value'] = $cust->field_alarm_email['und'][0]['value'];
+				} else {
+					form_set_error('form', 'We could not load your customer information at this time. Please contact Customer Service.');
+				}
+			} else {
+				form_set_error('form', 'Your validation ID is invalid or expired. Please contact Customer Service.');
+			}
+			$form['field_reg_account_id']['und'][0]['value']['#default_value'] = $_GET['verification'];
+			$form['#validate'][] = 'registration_validate_reg_form';
+			$form['#submit'][] = 'registration_create_customer';
+		}
+	}
+	
+	if($form_id == 'ipdatatel_form'){
+		$form['#submit'][] = 'registration_cust_mod_submit';
+		global $user;
+		$arg = arg();
+		$form['field_user']['und'][0]['value']['#default_value'] = $user->name;
+		$form['field_user']['#disabled'] = true;
+		$form['field_user_id']['und'][0]['value']['#default_value'] = $arg[2];
+		$form_state['user_id'] = $arg[2];
+		$ipdatatel = new Ipdatatel('cust_info');
+		$customer = $ipdatatel->loadCustomer($arg[2])->sendData();
+		hide($form['field_user_id']);
+	}
+	
+	return $form;
+}
+
+
+function registration_create_customer($form, &$form_state){
+	$values = $form_state['values'];
+	$uid = $values['uid'];
+	$ipdatatel = new Ipdatatel('cust_add');
+	$create = $ipdatatel->addCustomer($values)->sendData();
+	dpm($ipdatatel);
+	dpm($create);
+	// @TODO have ipdatatel fix there freaking api
+	// so i can get the user id
+	// @TODO insert customer id here
+	$user_id = !empty($create['user_id']) ? $create['user_id'] : 'N:A';
+	$local_data = array(
+		'user' => $values['name'],
+		'user_id' => $user_id,
+	);
+	drupal_goto("account/register/$user_id");
+}
+
+
+function registration_validate_reg_form($form, &$form_state){
+	if(!empty($form_state['values']['field_reg_account_id']['und'][0]['value'])){
+		$verfication_id = $form_state['values']['field_reg_account_id']['und'][0]['value'];
+		$validate = registration_validate_validation_id($verfication_id);
+		if(!$validate){
+			form_set_error('form', 'validation error');
+		}
+	}
+}
+
+
+function registration_validate_validation_id($id){
+	$expires = ( time() - ( 24*60*60 ) );
+	$query = new EntityFieldQuery();
+	$query->entityCondition('entity_type', 'node')
+  ->entityCondition('bundle', 'alarm')
+  ->propertyCondition('created', $expires, '<')
+  ->fieldCondition('field_alarm_verification_id', 'value', $id, '=');
+  $result = $query->execute();
+  if(!empty($result['node'])){
+	  return current($result['node']);
+  } else {
+	  return false;
+  }
+}
+
+
+
+function _registration_create_error($message){
+	return array(
+		'#type' => 'markup',
+		'#markup' => $message,
+		'#prefix' => '<div class="reg-form-error">',
+		'#suffix' => '</div>',
+	);
+}

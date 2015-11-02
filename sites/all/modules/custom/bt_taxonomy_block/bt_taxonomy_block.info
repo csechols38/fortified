@@ -1,0 +1,6 @@
+name = Taxonomy Block
+description = Creates Dynamic Blocks from Taxonomy Vocabularies.
+core = 7.x
+package = BlueTree
+files[] = classes/bt_taxonomy_block.class.php
+dependencies[] = token

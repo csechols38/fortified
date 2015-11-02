@@ -1,0 +1,1413 @@
+<?php
+
+
+
+/*
+ * @implements hook_menu()
+ */
+function bt_taxonomy_block_menu() {
+	$items  = array();
+	
+	$items['admin/config/system/bt_taxonomy_block'] = array(
+		'title' => 'Taxonomy BLock Configurations',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('bt_taxonomy_block_config_form'),
+		'access arguments' => array('access spellbinders configs'),
+		'file' => 'bt_taxonomy_block.admin.inc',
+		'type' => MENU_NORMAL_ITEM,
+	);
+	
+	return $items;
+}
+
+
+
+function bt_taxonomy_block_init(){
+	$files = array(
+		'classes/handlers/vocabularies' => 'class.php',
+		'classes/handlers/terms' => 'class.php',
+		'classes/handlers/displays' => 'class.php',
+		'classes/handlers/layouts' => 'class.php'
+	);
+	foreach($files as $path => $suffix){
+		module_load_include($suffix, 'bt_taxonomy_block', $path);
+	}
+	
+	
+	$cache = new BtPluginManager();
+	$cached = $cache->cacheType('plugins_cached')->getCache();
+	if(empty($cached->data)){
+		$plugin_types = array(
+			'terms',
+			'vocabs',
+			'displays',
+		);
+		foreach($plugin_types as $type){
+			switch($type){
+				case 'vocabs':
+					$plugins = $cache->loadAndCache($type);
+					$cache->cacheIndaviduals('vocab', $plugins);
+					break;
+				case 'terms':
+					$plugins = $cache->loadAndCache($type);
+					$cache->cacheIndaviduals('term', $plugins);
+					break;
+				case 'displays':
+					$plugins = $cache->loadAndCache($type);
+					$cache->cacheIndaviduals('display', $plugins);
+					break;
+			}
+		}
+		$cache->cacheType('plugins_cached')->setCache(TRUE);
+	}
+}
+
+
+function bt_taxonomy_block_list_vocabularies(){
+	$vocabulary_blocks = variable_get('bt_taxonomy_blocks', '');
+	return $vocabulary_blocks;
+}
+
+function bt_taxonomy_block_taxonomy_create_submit($form, &$form_state){
+	$taxonomy_blocks = bt_taxonomy_block_list_vocabularies();
+	$vid = $form_state['values']['vid'];
+	$vocabulary_machinename = $form_state['values']['machine_name'];
+	if(!empty($form_state['values']['bt_taxonomy_block_create'])){
+		bt_taxonomy_block_create_instance($vocabulary_machinename);
+		if(!empty($taxonomy_blocks)){
+			$taxonomy_blocks['vocabularies'][$vocabulary_machinename] = $vid;
+			// load instances
+			if(!empty($form_state['instances'])){
+				_bt_taxonomy_block_process_vocabulary_field_data($form_state, 'instances');
+			}
+			if(!empty($form_state['fields'])){
+				_bt_taxonomy_block_process_vocabulary_field_data($form_state, 'fields');
+			}
+			bt_taxonomy_block_proccess_vocab_settings($taxonomy_blocks['vocabularies'], $vid, $form_state);
+			bt_taxonomy_block_set_variable($taxonomy_blocks);
+		} else {
+			//set new variable
+			bt_taxonomy_block_set_variable(array('vocabularies' => array($vocabulary_machinename => $vid)));
+		}
+	} elseif(!empty($taxonomy_blocks['vocabularies']) && array_key_exists($vocabulary_machinename, $taxonomy_blocks['vocabularies'])) {
+		unset($taxonomy_blocks['vocabularies'][$vocabulary_machinename]);
+		bt_taxonomy_block_set_variable($taxonomy_blocks);
+	}
+}
+
+
+function _bt_taxonomy_block_process_vocabulary_field_data(&$form_state, $type){
+	$instance_types = array();
+	$instances = 'vocab_'. $type .'_loaded';
+	$layout = 'layout_'. $type .'_loaded';
+	if(!empty($form_state[$instances])){
+		$form_state['values']['bt_taxonomy_block']['plugin_settings'][$instances] = TRUE;
+	}
+	if(!empty($form_state[$layout])){
+		$form_state['values']['bt_taxonomy_block']['plugin_settings'][$layout] = TRUE;
+	}
+	if($type == 'instances'){
+		bt_taxonomy_block_create_instances($form_state['instances']);
+	} else if($type == 'fields'){
+		bt_taxonomy_block_create_fields($form_state['fields']);
+	}
+}
+
+
+function bt_taxonomy_block_proccess_vocab_settings(&$taxonomy_blocks, $vid, $form_state){
+	if(!empty($form_state['values']['bt_taxonomy_block']['bt_taxonomy_block_vocab_display'])){
+		$view_mode = $form_state['values']['bt_taxonomy_block']['taxonomy_block_view_mode'];
+		$taxonomy_blocks['vocabluary_settings'][$vid] = array();
+		$settings = $form_state['values']['bt_taxonomy_block']['plugin_settings'];
+		unset($form_state['values']['bt_taxonomy_block']['plugin_settings']);
+		$form_state['values']['bt_taxonomy_block']['settings'] = $settings;
+		$taxonomy_blocks['vocabluary_settings'][$vid] = serialize($form_state['values']['bt_taxonomy_block']);
+	} else if(!empty($taxonomy_blocks['vocabluary_settings'][$vid])){
+		unset($taxonomy_blocks['vocabluary_settings'][$vid]);
+	}
+}
+
+
+function bt_taxonomy_block_set_variable(array $value, $name = 'bt_taxonomy_blocks'){
+	variable_set($name, $value);
+}
+
+
+function bt_taxonomy_block_delete_vocab_submit($form, &$form_state){
+	$vocabularies = bt_taxonomy_block_list_vocabularies();
+	$vocabulary_machinename = $form_state['vocabulary']->machine_name;
+	unset($vocabularies['vocabularies'][$vocabulary_machinename]);
+	bt_taxonomy_block_set_variable($vocabularies);
+	
+}
+
+
+class BtCacheHandler {
+	
+	public function getCache(){
+		if(!empty($this->cid)){
+			return cache_get($this->cid, 'cache_bt_taxonomy_block');
+		}
+	}
+	
+	public function cacheType($type, $name = null){
+		$cid = NULL;
+		switch($type){
+			case 'vocabs':
+				$cid = 'vocabularies';
+				break;
+			case 'vocab':
+				$cid = 'vocab:' . $name;
+				break;
+			case 'terms':
+				$cid = 'terms';
+				break;
+			case 'term':
+				$cid = 'term:' . $name;
+				break;
+			case 'plugin':
+				$cid = 'plugin:' . $name;
+				break;
+			case 'layout':
+				$cid = 'layout:' . $name;
+				break;
+			case 'term_layout':
+				$cid = 'term_layout:' . $name;
+				break;
+			case 'vocab_layout':
+				$cid = 'vocab_layout:' . $name;
+				break;
+			case 'displays':
+				$cid = 'displays';
+				break;
+			case 'display':
+				$cid = 'display:' . $name;
+				break;
+			case 'plugins_cached':
+				$cid = 'plugins_cached';
+				break;
+		}
+		$this->cid = $cid;
+		return $this;
+	}
+	
+	public function setCache($cache){
+		if(!empty($this->cid)){
+			$set = cache_set($this->cid, $cache, 'cache_bt_taxonomy_block');
+		}
+	}
+	
+}
+
+
+class BtPluginManager extends BtCacheHandler {
+
+
+	private function loadHooks($function){
+		$cache_type = '';
+		switch($function){
+			case 'taxonomy_block_plugin_terms_info':
+				$cache_type = 'terms';
+				break;
+			case 'taxonomy_block_plugin_vocabularys_info':
+				$cache_type = 'vocabs';
+				break;
+		}
+		$plugins = array();
+		if($cache = $this->cacheType($cache_type)->getCache()){
+			$plugins = $cache->data;
+		} else if (sizeof(module_implements($function)) > 0) {
+			// Call all modules that implement the hook, and let them make changes to $variables.
+			$plugins += module_invoke_all($function, $plugins);
+			$this->cacheType($cache_type)->setCache($plugins);
+		}
+		return $plugins;
+	}
+	
+	public function loadInstances($handler, $plugin, $plugin_type){
+		if(is_string($handler)){
+			$handler = $this->loadHandler($handler);
+		}
+		if($this->bundle && !empty($plugin['instances'])){
+			$instances = $handler->pluginFieldInstances($plugin, $this->bundle);
+			if(!empty($instances) && is_array($instances)){
+				if(empty($this->form_state['instances'])){
+					$this->form_state['instances'] = $instances;
+				} else {
+					$this->form_state['instances'] = array_merge($this->form_state['instances'], $instances);
+				}
+			}
+		}
+	}
+	
+	public function loadFields($handler, $plugin, $plugin_type){
+		if(is_string($handler)){
+			$handler = $this->loadHandler($handler);
+		}
+		if($this->bundle && !empty($plugin['fields'])){
+			$fields = $handler->pluginFields($plugin, $this->settings_clean);
+			if(!empty($fields) && is_array($fields)){
+				if(empty($this->form_state['fields'])){
+					$this->form_state['fields'] = $fields;
+				} else {
+					$this->form_state['instances'] = array_merge($this->form_state['fields'], $fields);
+				}
+				$this->form_state['layout_fields_loaded'] = true;
+				// for hidding unused fields
+				if(!empty($plugin['hide unused fields'])){
+					$this->hideUnusedFields($plugin, $fields);
+				}
+			}
+		}
+	}
+	
+	private function defineHook($type){
+		switch($type){
+			case 'terms':
+				$hook = 'taxonomy_block_plugin_terms_info';
+				break;
+			case 'vocabs':
+				$hook = 'taxonomy_block_plugin_vocabularys_info';
+				break;
+			case 'displays':
+				$hook = 'taxonomy_block_plugin_displays_info';
+				break;
+			default:
+				$hook = '';
+				break;
+		}
+		return $hook;
+	}
+	
+	public function loadAndCache($type){
+		$hook = $this->defineHook($type);
+		$plugins = array();
+		if (sizeof(module_implements($hook)) > 0) {
+			$load_plugins = module_invoke_all($hook, $plugins);
+			$plugins += $load_plugins;
+			$this->cacheType($type)->setCache($plugins);	
+			return $plugins;
+		}
+	}
+	
+	
+	public function cacheIndaviduals($type, $plugins){
+		if(!empty($plugins)){
+			foreach($plugins as $machine => $data){
+				if($type == 'vocab' || $type == 'term'){
+					$layout_plugins = $this->loadLayoutPlugins($data);
+					if(!empty($layout_plugins)){
+						$this->cacheType($type . "_layout", $machine)->setCache($layout_plugins);
+					}
+				}
+				$this->cacheType($type, $machine)->setCache($data);
+			}
+		}
+	}
+	
+	
+	public function loadPluginFromCache($name, $type = 'vocab'){
+		$plugin = $this->cacheType($type, $name)->getCache();
+		if($plugin){
+			$plugin = !empty($plugin->data) ? $plugin->data : $plugin;
+			$file = !empty($plugin['file']) ? $plugin['file'] : NULL;
+			$module = !empty($plugin['module']) ? $plugin['module'] : NULL;
+			if($module && !empty($file['path']) && !empty($file['suffix'])){
+				module_load_include($file['suffix'], $module, $file['path']);
+				return $plugin;
+			}
+		} else {
+			return false;
+		}
+	}	
+	
+	public function loadLayoutFromCache($type, $name, $layout){
+		$Loaded = false;
+		if($plugin = $this->cacheType($type . "_layout", $name)->getCache()){
+			if(!empty($plugin->data) && array_key_exists($layout, $plugin->data[$name])){
+				$this->requireLayoutHandler($plugin->data[$name][$layout]);
+				return $plugin->data[$name][$layout];
+			}
+		}
+		return $Loaded;
+	}
+	
+	
+	private function loadHandler($handler){
+		$handler = new $handler();
+		return $handler;
+	}
+
+
+	public function loadPlugins($function, $p_data = false){
+		$view_modes = array();
+		$plugins = $this->loadHooks($function);
+		if(!empty($plugins)){
+			foreach($plugins as $machine => $data){
+				$module = !empty($data['module']) ? $data['module'] : 'N/A';
+				$module_title = $data['module_title'] ? $data['module_title'] : 'N/A';
+				if($p_data){
+					$view_modes[$machine] = $data;
+				} else {
+					$tlabel = !empty($data['title']) ? $data['title'] : NULL;
+					if(!$tlabel && !empty($data['label'])){
+						$tlabel = $data['label'];
+					}
+					if(!empty($view_modes[$module_title])){
+						$view_modes[$module_title] += array(
+							$machine => $tlabel,
+						);
+					} else {
+						$view_modes[$module_title] = array(
+							$machine => $tlabel,
+						);
+					}
+				}
+			}
+			$this->plugins_loaded = true;
+		}
+		return $view_modes;
+	}
+
+	public function returnPluginData($plugins, $view_mode){
+		if(array_key_exists($view_mode, $plugins)){
+			return $plugins[$view_mode];
+		} else {
+			return false;
+		}
+	}
+
+
+
+	public function loadPlugin($plugins, $plugin){
+		$data = $this->returnPluginData($plugins, $plugin);
+		$load_plugin = $this->inludePluginFile($plugins, $plugin);
+		$this->loadStyleSheets($data);
+		return $data;
+	}
+	
+	
+
+	public function inludePluginFile($plugins, $view_mode){
+		$file = !empty($plugins[$view_mode]['file']) ? $plugins[$view_mode]['file'] : NULL;
+		$module = !empty($plugins[$view_mode]['module']) ? $plugins[$view_mode]['module'] : NULL;
+		if($module && !empty($file['path']) && !empty($file['suffix'])){
+			module_load_include($file['suffix'], $module, $file['path']);
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	public function loadStyleSheets($plugin){
+		if(!empty($plugin['stylesheets'])){
+			if(empty($plugin['relative']) && !empty($plugin['module'])){
+				$plugin['relative'] = drupal_get_path('module', $plugin['module']) . '/';
+			}
+			foreach($plugin['stylesheets'] as $type => $data){
+				switch($type){
+					case 'less':
+						if(!empty($data['path'])){
+							$style_dir = $plugin['relative'] . $data['path'];
+							$stylesheets = $this->scanLayoutDir($style_dir, false);
+							if(!empty($stylesheets)){
+								$this->includeStyleSheets($style_dir, $stylesheets);
+							}
+						}
+						break;
+					case 'css':
+						// @TODO ...
+						break;
+				}
+			}
+		}
+	}
+	
+	private function includeStyleSheets($path, $stylesheets){
+		foreach($stylesheets as $d => $name){
+			drupal_add_css($path . '/' . $name);
+		}
+	}
+	
+	private function scanLayoutDir($path, $files = false, $fname = 'plugin'){
+		$dirs = scandir($path);
+		$ignore = array('.', '..');
+		$dir = array_diff($dirs, $ignore);
+		if(!$files){
+			return $dir;
+		} else if(!empty($dir)){
+				$filenames = array();
+				foreach($dir as $delta => $file){
+					$exp = explode(".", $file);
+					if(count($exp) == 3){
+						if($exp[1] == $fname){
+							$filenames[] = $file;
+						}
+					}
+				}
+				return $filenames;
+			} else {
+			return array();
+		}
+	}
+
+
+	public function loadLayoutPlugins($plugin){
+		$directory_variable = variable_get('bt_tax_block_plugins_location', 'sites/all/modules/custom/plugins');
+		$module = $plugin['module'];
+		$plugins = array();
+		if(!empty($plugin['layout_plugins'])){
+			foreach($plugin['layout_plugins'] as $name => $path){
+				$dir_path = "$directory_variable/$module/$path";
+				if(is_dir($dir_path)){
+					$dirs = $this->scanLayoutDir($dir_path);
+					if(!empty($dirs)){
+						foreach($dirs as $delta => $dir){
+							$plugin_files = $this->scanLayoutDir("$dir_path/$dir", true);
+							if(!empty($plugin_files)){
+								foreach($plugin_files as $delta => $filename){
+									$location = "$dir_path/$dir/$filename";
+									$relative = "$dir_path/$dir/";
+									require_once($location);
+									$display_plugin_info_function = $dir . "_taxonomy_block_layout_handler";
+									$display_plugin = call_user_func($display_plugin_info_function);
+									if(!empty($display_plugin['handler'])){
+										$handler = $display_plugin['handler'];
+										$layout = new $handler();
+										$layout_info = $layout->pluginInfo();
+										if(!empty($layout_info) && !empty($layout_info['name'])){
+											$layout_info += array('handler' => $handler, 'location' => $location, 'relative' => $relative);
+											$plugins[$module][$dir] = $layout_info;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return $plugins;
+	}
+	
+	public function loadLayoutPlugin($plugin, $master_plugin, $layout_plugin_name){
+		$plugins = $this->loadLayoutPlugins($plugin);
+		$l_plugin = NULL;
+		if(!empty($plugins) && array_key_exists($master_plugin, $plugins)){
+			$master = $plugins[$master_plugin];
+			if(array_key_exists($layout_plugin_name, $master)){
+				return $master[$layout_plugin_name];
+			}
+		}
+		return $l_plugin;
+	}
+	
+	public function requireLayoutHandler($plugin){
+		if($plugin['location']){
+			return require_once($plugin['location']);
+		}
+	}
+	
+	private function formatPluginLayouts($layout_plugins){
+		$layout_plugin_options = array();
+		foreach($layout_plugins as $parent_plugin => $layout_plugin){
+			foreach($layout_plugin as $machine => $data){
+				$layout_plugin_options[$machine] = $data['name'];
+			}
+		}
+		return $layout_plugin_options;
+	}
+
+
+	public function loadPluginSettings($function, $defaults, $view_mode, $defaults, &$form, $r = true){
+	
+		$plugins = array();
+		$cached = $this->cacheType($this->form_type)->getCache();
+		if(!empty($cached->data)){
+			$plugins = $cached->data;
+		}
+		
+		$p = $this->cacheType($this->plugin_type, $view_mode)->getCache();
+		$plugin = NULL;
+		if(!empty($p->data)){
+			$plugin = $p->data;
+		}
+
+		
+		if(!empty($plugins) && !empty($plugin)){
+		
+			$class = !empty($plugin['handler']) ? $plugin['handler'] : NULL;
+			
+			if($this->inludePluginFile($plugins, $view_mode)){
+			
+				$this->plugin = $plugin;
+				$this->form_state['plugin'] = $plugin;
+				$this->form_state['plugin_display_mode'] = $view_mode;
+				$this->view_mode = $view_mode;
+				$handler = new $class();
+				$settings = array();
+				$handler->pluginSettings($view_mode, $defaults, $form, $settings);
+				$this->plugin_module = $this->plugin['module'];
+				if($r){
+					
+					$form['bt_taxonomy_block']['plugin_settings'] = array(
+						'#type' => 'fieldset',
+						'#title' => t('Plugin Settings For: <em>@plugin</em>', array('@plugin' => $view_mode)),
+						'#collapsed' => TRUE,
+						'#collapsible' => TRUE,
+						'#tree' => TRUE,
+						'#weight' => 5,
+						'#attributes' => array(
+							'id' => 'taxonomy-block-plugin-settings',
+						),
+					);
+					
+					$f_data = array(
+						'handler' => $class,
+						'plugin' => $this->view_mode,
+					);
+					$this->fieldPluginData($f_data);
+					
+					
+					$form['bt_taxonomy_block']['plugin_settings'] += $settings;
+						
+					$settings = !empty($this->settings->settings) ? unserialize($this->settings->settings) : array();
+					
+					$this->settings_clean = $settings;
+					
+					// for field instances on terms && vocabularies
+					if(empty($settings[$view_mode]['vocab_instances_loaded'])){
+						$this->loadInstances($handler, $plugin, $function);
+						$this->form_state['vocab_instances_loaded'] = true;
+					}
+					
+					if(!empty($plugin['hide unused fields'])){
+						// @TODO hiden unused fields for master plugins
+					}
+					
+					if(!empty($plugin['fields'])){
+						// @TODO LOAD FIELDS INTO FORM FOR MAIN PLUGINS
+					}
+					
+					// for layout plugins
+					if(!empty($plugin['layout_plugins'])){
+						$default_value = !empty($defaults['layout_plugins']) ? $defaults['layout_plugins'] : '_none';
+						$layout = $this->cacheType($this->plugin_type. '_layout', $view_mode)->getCache();
+						if(!empty($layout->data)){
+							$layout_plugin_options = $this->formatPluginLayouts($layout->data);
+							$this->fieldLayoutPlugins($layout_plugin_options, $default_value);
+							if(!empty($layout->data[$view_mode][$default_value])){
+								$layout_plugin = $layout->data[$view_mode][$default_value];
+								if($this->requireLayoutHandler($layout_plugin)){
+									$this->layout_plugin = $layout_plugin;
+									if(!empty($this->layout_plugin['handler'])){
+										$collapsed = !empty($this->ajax) ? FALSE : TRUE;
+										$handler = new $this->layout_plugin['handler']();
+										$layout_settings = array();
+										$handler->pluginSettings($this->layout_plugin['machine'], $defaults, $form, $this->form_state, $layout_settings);
+										if(!empty($layout_settings)){
+											$this->fieldLayoutSettings($this->layout_plugin['name'], $collapsed);
+											$form['bt_taxonomy_block']['plugin_settings']['layout_plugin_settings'] += $layout_settings;
+										}
+									}
+									if(!empty($this->layout_plugin['fields']) && empty($settings[$view_mode]['layout_fields_loaded'])){
+										$this->loadFields($this->layout_plugin['handler'], $this->layout_plugin, 'layout');			
+									}
+									if(!empty($this->layout_plugin['instances']) && empty($settings[$view_mode]['layout_instances_loaded'])){
+										$this->loadInstances($this->layout_plugin['handler'], $this->layout_plugin, 'layout');
+										$this->form_state['layout_instances_loaded'] = true;
+									}
+								}
+							}
+						}
+					}
+				} else {
+					return $settings;
+				}
+				
+			} else {
+				// @TODO display this plugin has a config error
+			}
+			
+		} else {
+			// @TODO display this plugin has no settings
+		}
+	}
+}
+
+
+class BtTaxonomyBlockPluginForm extends BtPluginManager {
+
+	public $view_modes = array();
+	public $plugin_type;
+	public $ajax = FALSE;
+
+	public function __construct($type, &$form, &$form_state, $settings, $function, $default_values = array()){
+		$this->form = &$form;
+		$this->defauls = $default_values;
+		$this->form_state = &$form_state;
+		$this->settings = $settings;
+		$this->function_name = $function;
+		$this->viewModes($function);
+		$this->form_type = $type;
+		switch($this->form_type){
+			case 'vocabs':
+				$this->plugin_type = 'vocab';
+				break;
+			case 'terms':
+				$this->plugin_type = 'term';
+				break;
+		}
+		$this->bundle = !empty($this->form['#vocabulary']->machine_name) ? $this->form['#vocabulary']->machine_name : NULL;
+	}
+
+
+	private function viewModes($funciton){
+		$view_modes = array(
+			'default' => 'Default Taxonomy Block ( Does Nothing At all )',
+		);
+		if(isset($this->form['#bundle'])){
+			$this->view_modes = field_view_mode_settings('taxonomy_term', $this->form['#bundle']);
+		}
+		$this->view_modes += $view_modes;
+		$this->view_modes = array_keys($this->view_modes);
+		$this->view_modes = array_combine($this->view_modes, $this->view_modes);
+		$plugins = $this->loadPlugins($funciton);
+		if(is_array($plugins)){
+			$this->view_modes += $plugins;
+		}
+	}
+	
+	public function hideUnusedFields($plugin, $fields){
+		$fields = array_keys($fields);
+		$f_fields = element_children($this->form);
+		foreach($f_fields as $key => $field_name){
+			if(strpos($field_name, 'field') !== false && !in_array($field_name, $fields)){
+				$this->form[$field_name]['#access'] = FALSE;
+			}
+		}
+	}
+	
+
+	public function addField($type){
+		switch($type){
+		case 'plugin':
+			$this->fieldPlugin();
+			break;
+		case 'title_display':
+			$this->fieldTitleDisplay();
+			break;
+		case 'block_create':
+			$this->fieldCreateBlock();
+			break;
+		case 'vocab_display':
+			$this->fieldVocabularyDisplay();
+			break;
+		case 'vocab_create_block':
+			$this->fieldVocabCreateBlock();
+			break;
+		}
+		return $this;
+	}
+	
+	public function fieldPluginData($data){
+		$this->form['bt_taxonomy_block']['plugin_settings']['handler'] = array(
+			'#type' => 'hidden',
+			'#value' => !empty($data['handler']) ? $data['handler'] : '',
+		);
+		$this->form['bt_taxonomy_block']['plugin_settings']['plugin'] = array(
+			'#type' => 'hidden',
+			'#value' => !empty($data['plugin']) ? $data['plugin'] : '',
+		);
+	}
+	
+	
+	public function fieldLayoutSettings($plugin_name, $collapsed){
+		$this->form['bt_taxonomy_block']['plugin_settings']['layout_plugin_settings'] = array(
+			'#type' => 'fieldset',
+		  '#title' => t('Layout Settings For: <em>@plugin</em>', array('@plugin' => $plugin_name)),
+		  '#collapsed' => $collapsed,
+		  '#collapsible' => TRUE,
+		  '#tree' => TRUE,
+		  '#weight' => 4,
+		  '#attributes' => array(
+		  	'id' => 'taxonomy-block-layout-settings',
+		  ),
+		);
+	}
+
+	public function fieldLayoutPlugins($options, $default){
+		$options += array(
+		  '_none' => t('None'),
+		);
+		$this->form['bt_taxonomy_block']['plugin_settings']['layout_plugin_settings'] = array(
+			'#type' => 'hidden',
+			'#weight' => 4,
+			'#attributes' => array('id' => 'taxonomy-block-layout-settings'),
+		);
+		$this->form['bt_taxonomy_block']['plugin_settings']['layout_plugins'] = array(
+			'#type' => 'select',
+			'#title' => t('Layout Settings'),
+			'#default_value' => $default,
+			'#options' => $options,
+			'#weight' => 3,
+			'#ajax' => array(
+				'wrapper' => 'taxonomy-block-layout-settings',
+				'callback' => 'bt_taxonomy_block_layout_settings_callback',
+				'method' => 'replace',
+				'effect' => 'fade',
+			),
+		);
+		return $this;
+	}
+
+
+	public function buildForm(){
+		$this->form['bt_taxonomy_block'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Taxonomy Block / Display Settings'),
+			'#collapsed' => FALSE,
+			'#collapsible' => TRUE,
+			'#tree' => TRUE,
+		);
+		return $this;
+	}
+
+	private function fieldVocabCreateBlock(){
+		$this->form['bt_taxonomy_block_create'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Taxonomy Block'),
+			'#description' => t('Blocks can be created for Children Terms'),
+			'#default_value' => isset($this->defauls['bt_taxonomy_block_create']) ? $this->defauls['bt_taxonomy_block_create'] : FALSE,
+		);
+	}
+
+	private function fieldVocabularyDisplay(){
+		$this->form['bt_taxonomy_block']['bt_taxonomy_block_vocab_display'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Single Display'),
+			'#description' => t('Use single plugin display for child terms. This will create a single block with this vocabularies name instead of blocks for child terms.'),
+			'#default_value' => isset($this->defauls['bt_taxonomy_block_vocab_display']) ? $this->defauls['bt_taxonomy_block_vocab_display'] : FALSE,
+		);
+		if(!empty($this->defauls['bt_taxonomy_block_vocab_display'])){
+			$this->fieldVocabTitleDesc();
+		}
+	}
+	
+	private function fieldVocabTitleDesc(){
+		$this->form['bt_taxonomy_block']['bt_taxonomy_block_vocab_title'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Display Title'),
+			'#description' => t('The title this block will display with.'),
+			'#default_value' => isset($this->defauls['bt_taxonomy_block_vocab_title']) ? $this->defauls['bt_taxonomy_block_vocab_title'] : FALSE,
+		);
+		$this->form['bt_taxonomy_block']['bt_taxonomy_block_vocab_desc'] = array(
+			'#type' => 'textarea',
+			'#title' => t('Display Description'),
+			'#description' => t('The description this block will display with.'),
+			'#default_value' => isset($this->defauls['bt_taxonomy_block_vocab_desc']) ? $this->defauls['bt_taxonomy_block_vocab_desc'] : FALSE,
+		);
+	}
+
+	private function fieldPlugin(){
+		//get a list of view modes
+		$this->form['bt_taxonomy_block']['taxonomy_block_view_mode'] = array(
+			'#type' => 'select',
+			'#title' => t('Display Mode'),
+			'#default_value' => !empty($this->defauls['taxonomy_block_view_mode']) ? $this->defauls['taxonomy_block_view_mode'] : 'default',
+			'#options' => $this->view_modes,
+			'#ajax' => array(
+				'wrapper' => 'taxonomy-block-plugin-settings',
+				'callback' => 'bt_taxonomy_block_plugin_settings_callback',
+				'method' => 'replace',
+				'effect' => 'fade',
+			),
+		);
+		$this->form['bt_taxonomy_block']['plugin_settings'] = array(
+			'#type' => 'hidden',
+			'#attributes' => array('id' => 'taxonomy-block-plugin-settings'),
+		);
+	}
+
+	private function fieldTitleDisplay(){
+		$this->form['bt_taxonomy_block']['taxonomy_block_title_display'] = array(
+			'#type' => 'select',
+			'#title' => t('Title Display Options'),
+			'#default_value' => !empty($this->defauls['taxonomy_block_title_display']) ? $this->defauls['taxonomy_block_title_display'] : array(),
+			'#options' => array(
+				'show' => t('Show'),
+				'hide' => t('Hide'),
+				'custom' => t('Custom'),
+			),
+		);
+		return $this;
+	}
+
+	private function fieldCreateBlock(){
+		$this->form['bt_taxonomy_block']['bt_taxonomy_block_create_block'] = array(
+			'#type' => 'checkbox',
+			'#title' => t('Create a block for this term'),
+			'#description' => t('Override'),
+			'#default_value' => isset($this->defauls['bt_taxonomy_block_create_block'])
+			? $this->defauls['bt_taxonomy_block_create_block']
+			: TRUE,
+		);
+		$this->form['bt_taxonomy_block']['taxonomy_block_title_custom'] = array(
+			'#type' => 'textarea',
+			'#title' => t('Custom Title'),
+			'#default_value' => !empty($this->defauls['taxonomy_block_title_custom']) ? $this->defauls['taxonomy_block_title_custom'] : '',
+			'#states' => array(
+				'visible' => array(
+					':input[name="bt_taxonomy_block[taxonomy_block_title_display]"]' => array('value' => 'custom'),
+				),
+			),
+		);
+		return $this;
+	}
+
+	public function ajaxProcessed(){
+	
+		if(!empty($this->form_state['values']['bt_taxonomy_block']) || !empty($this->defauls['taxonomy_block_view_mode'])){
+		
+			$f_state = !empty($this->form_state['values']['bt_taxonomy_block']) 
+								 ? $this->form_state['values']['bt_taxonomy_block']
+								 : array();
+			//load the plugin settings
+			$view_mode = !empty($f_state['taxonomy_block_view_mode']) 
+		  							? $f_state['taxonomy_block_view_mode'] 
+		  							: $this->defauls['taxonomy_block_view_mode'];
+		  	
+		  $defaults = array();
+		  $settings = array();
+		  if($this->settings) {
+		  	if(!empty($this->settings->settings)){
+		  		$settings = unserialize($this->settings->settings);
+		  	}
+				$defaults = !empty($settings[$view_mode]) ? $settings[$view_mode] : array();
+		  }
+		  
+		  if(!empty($f_state['plugin_settings']['layout_plugins'])){
+			  $defaults['layout_plugins'] = $f_state['plugin_settings']['layout_plugins'];
+		  }
+		  
+		  
+		  if(!empty($f_state)){
+			  $this->ajax = TRUE;
+		  }
+		  
+		  $this->loadPluginSettings($this->function_name, $this->settings, $view_mode, $defaults, $this->form);
+		}
+		$this->form['taxonomy_block_display_settings']['#states'] = array(
+				'visible' => array(
+					':input[name="bt_taxonomy_block[taxonomy_block_view_mode]"]' => array('value' => 'custom'),
+				),
+			);
+		return $this;
+	}
+
+	public function addSubmitHandler($function, $unshift = false){
+		if(!$unshift){
+			$this->form['#submit'][] = $function;
+		} else {
+			array_unshift($this->form['#submit'], $function);
+		}
+		return $this;
+	}
+}
+
+
+function bt_taxonomy_block_form_alter(&$form, &$form_state, $form_id){
+	switch($form_id){
+	case 'taxonomy_form_vocabulary':
+		switch($form['#id']){
+		case 'taxonomy-form-vocabulary':
+		case 'taxonomy-form-vocabulary--2':
+			$default_values = array(
+				'bt_taxonomy_block_create' => FALSE,
+			);
+			$taxonomy_blocks = bt_taxonomy_block_list_vocabularies();
+			$vid = !empty($form['#vocabulary']->vid) ? $form['#vocabulary']->vid : '';
+			if(!empty($taxonomy_blocks['vocabularies']) && isset($vid)){
+				if(in_array($vid, $taxonomy_blocks['vocabularies'])){
+					$default_values['bt_taxonomy_block_create'] = TRUE;
+				}
+			}
+			$settings = new stdClass;
+			if(!empty($taxonomy_blocks['vocabularies']['vocabluary_settings']) && isset($vid)){
+				if(array_key_exists($vid, $taxonomy_blocks['vocabularies']['vocabluary_settings'])){
+					$defaults = unserialize($taxonomy_blocks['vocabularies']['vocabluary_settings'][$vid]);
+					if(!empty($defaults['settings'])){
+						$settings->settings = serialize(array($defaults['taxonomy_block_view_mode'] => $defaults['settings']));
+						unset($defaults['settings']);
+					}
+					$default_values += $defaults;
+				}
+			}
+			if($default_values['bt_taxonomy_block_create']){
+				$psettings = new BtTaxonomyBlockPluginForm(
+					'vocabs', 
+					$form, 
+					$form_state, 
+					$settings, 
+					'taxonomy_block_plugin_vocabularys_info', 
+					$default_values
+				);
+				
+				$psettings->buildForm();
+				$psettings->addField('vocab_create_block')
+					->addField('vocab_display')
+					->addField('plugin')
+					->addSubmitHandler('bt_taxonomy_block_taxonomy_create_submit')
+					->ajaxProcessed();
+				$form['bt_taxonomy_block']['taxonomy_block_view_mode']['#states'] = array(
+					'visible' => array(
+						':input[name="bt_taxonomy_block[bt_taxonomy_block_vocab_display]"]' => array('checked' => TRUE),
+					),
+				);
+			} else {
+				$psettings = new BtTaxonomyBlockPluginForm('vocabs', $form, $form_state, $settings, 'taxonomy_block_plugin_vocabularys_info', $default_values);
+				$psettings->addField('vocab_create_block')
+				->addSubmitHandler('bt_taxonomy_block_taxonomy_create_submit');
+			}
+			break;
+		case 'taxonomy_vocabulary_confirm_delete':
+			$taxonomy_blocks = bt_taxonomy_block_list_vocabularies();
+			$vid = !empty($form['#vocabulary']->vid) ? $form['#vocabulary']->vid : '';
+			if(!empty($taxonomy_blocks['vocabularies']) && in_array($vid, $taxonomy_blocks['vocabularies'])){
+				$form['#submit'][] = 'bt_taxonomy_block_delete_vocab_submit';
+			}
+			break;
+		}
+		break;
+	case 'taxonomy_form_term':
+		$taxonomy_blocks = bt_taxonomy_block_list_vocabularies();
+		$settings = array();
+		$vocab_machine_name = !empty($form['vocabulary_machine_name']['#value']) ? $form['vocabulary_machine_name']['#value'] : '';
+		if(!empty($taxonomy_blocks['vocabularies']) && array_key_exists($vocab_machine_name, $taxonomy_blocks['vocabularies'])){
+			if(empty($form['delete'])){
+				$default_values = array();
+				if(!empty($form['tid']['#value']) && $settings = _bt_taxonomy_load_term_settings($form['tid']['#value'])){
+					if(!empty($settings->title_display)){
+						if($settings->title_display != 'hide' && $settings->title_display != 'show'){
+							$default_values['taxonomy_block_title_custom'] = $settings->title_display;
+							$default_values['taxonomy_block_title_display'] = 'custom';
+						} else {
+							$default_values['taxonomy_block_title_display'] = $settings->title_display;
+						}
+					}
+					$default_values['taxonomy_block_view_mode'] = !empty($settings->view_mode) ? $settings->view_mode : array();
+					$default_values['taxonomy_block_token_value_type'] = !empty($settings->token_value_type) ? $settings->token_value_type : array();
+					$default_values['bt_taxonomy_block_create_block'] = isset($settings->create_block) ? $settings->create_block : TRUE;
+				}
+				// for vocabularies that have master vocab display checked
+				// we will provide its plugin as its terms default values
+				if(!empty($form['#vocabulary']->vid) && empty($default_values)){
+					$vocab_settings = bt_taxonomy_load_vocabulary_settings($form['#vocabulary']->vid);
+					if(!empty($vocab_settings['bt_taxonomy_block_vocab_display'])){
+						if(!empty($vocab_settings['taxonomy_block_view_mode'])){
+							$default_values['taxonomy_block_view_mode'] = $vocab_settings['taxonomy_block_view_mode'];
+						}
+					}
+				}
+				$psettings = new BtTaxonomyBlockPluginForm('terms', $form, $form_state, $settings, 'taxonomy_block_plugin_terms_info', $default_values);
+				$psettings->buildForm();
+				$psettings->addField('block_create')
+					->addField('title_display')
+					->addField('plugin')
+					->addSubmitHandler('bt_taxonomy_block_term_create_submit')
+					->addSubmitHandler('bt_taxonomy_block_term_settings_submit', true)
+					->ajaxProcessed();
+				//custom display code field
+				$form['bt_taxonomy_block']['taxonomy_block_display_settings'] = $form['taxonomy_block_display_settings'];
+				unset($form['taxonomy_block_display_settings']);
+			} else {
+				$form['#submit'][] = 'bt_taxonomy_block_delete_taxonomy_settings_submit';
+			}
+		}
+		break;
+	case 'block_admin_configure':
+		if(!empty($form['module']['#value']) && $form['module']['#value'] == 'bt_taxonomy_block'){
+			$ids = explode("_", $form['delta']['#value']);
+			list($module, $vid, $tid) = $ids;
+			if($tid != 'vocab'){
+				$path = "/taxonomy/term/$tid/edit";
+			} else {
+				$vocab = taxonomy_vocabulary_load($vid);
+				$path = "/admin/structure/taxonomy/$vocab->machine_name/edit";
+			}
+			$form['settings']['bt_taxonomy_block_edit'] = array(
+				'#type' => 'markup',
+				'#markup' => t('<a href="@path">Taxonomy Block Settings</a>', array('@path' => $path)),
+				'#weight' => -100,
+			);
+		}
+		break;
+	}
+}
+
+
+function bt_taxonomy_block_plugin_settings_callback($form, &$form_state){
+	return $form['bt_taxonomy_block']['plugin_settings'];
+}
+
+function bt_taxonomy_block_layout_settings_callback($form, &$form_state){
+	return $form['bt_taxonomy_block']['plugin_settings']['layout_plugin_settings'];
+}
+
+
+function _bt_taxonomy_load_term_settings($tid){
+	$term = db_select('bt_taxonomy_block', 'b')
+	->fields('b')
+	->condition('tid', $tid,'=')
+	->execute()
+	->fetchObject();
+	return $term;
+}
+
+
+function bt_taxonomy_load_vocabulary_settings($vid){
+	if(!empty($vid)){
+		$taxonomy_blocks = bt_taxonomy_block_list_vocabularies();
+		if(!empty($taxonomy_blocks['vocabularies']['vocabluary_settings']) && isset($vid)){
+			if(array_key_exists($vid, $taxonomy_blocks['vocabularies']['vocabluary_settings'])){
+				return unserialize($taxonomy_blocks['vocabularies']['vocabluary_settings'][$vid]);
+			}
+		}
+	}
+}
+
+
+function bt_taxonomy_block_term_settings_submit($form, &$form_state){
+	$form_state['values']['taxonomy_block_display_settings'] = $form_state['values']['bt_taxonomy_block']['taxonomy_block_display_settings'];
+}
+
+
+function bt_taxonomy_block_term_create_submit($form, &$form_state){
+
+	//...
+	$tid = $form_state['values']['tid'];
+	$vid = !empty($form_state['values']['vid']) ? $form_state['values']['vid'] : '';
+	if(!empty($form_state['values']['bt_taxonomy_block']) && $form_state['clicked_button']['#value'] == 'Save'){
+		$taxonomy_block_settings = $form_state['values']['bt_taxonomy_block'];
+		$title_display = $taxonomy_block_settings['taxonomy_block_title_display'];
+		$term_settings = new StdClass();
+		$term_settings->vid = $form_state['values']['vid'];
+		$term_settings->tid = $tid;
+		foreach($taxonomy_block_settings as $type => $value){
+			switch($type){
+			case 'taxonomy_block_title_display':
+				switch($value){
+				case 'custom':
+					$term_settings->title_display = $form_state['values']['bt_taxonomy_block']['taxonomy_block_title_custom'];
+					break;
+				case 'show':
+				case 'hide':
+					$term_settings->title_display = $title_display;
+					break;
+				}
+				break;
+			case 'taxonomy_block_view_mode':
+				$term_settings->view_mode = $value;
+				break;
+			case 'taxonomy_block_token_value_type':
+				$term_settings->token_value_type = $value;
+				break;
+			case 'bt_taxonomy_block_create_block':
+				$term_settings->create_block = $value;
+				break;
+			case 'plugin_settings':
+				$term_settings->settings = serialize(array($taxonomy_block_settings['taxonomy_block_view_mode'] => $value));
+				break;
+			}
+		}
+		
+		// create the field instances
+		if(!empty($form_state['fields'])){
+			bt_taxonomy_block_create_fields($form_state['fields']);
+		}
+
+		// create the field instances
+		if(!empty($form_state['instances'])){
+			bt_taxonomy_block_create_instances($form_state['instances']);
+		}
+
+		$term_settings = (array) $term_settings;
+		if(!$exists = _bt_taxonomy_load_term_settings($tid)){
+			//insert new term settings
+			$save_term = drupal_write_record('bt_taxonomy_block', $term_settings);
+		} else {
+			$vocab_settings = bt_taxonomy_load_vocabulary_settings($vid);
+			//update existing term settings
+			if(empty($vocab_settings['bt_taxonomy_block_vocab_display'])){
+				$save_term = drupal_write_record('bt_taxonomy_block', $term_settings, 'tid');
+			} else {
+				// ... either delete or let people add settings per term
+				// I like the idea of settings per term personally :) ...
+				// Ill just let the setting pass and dissable create block checkbox for now ...
+				// @todo function when vocab is saved that loops all its children and sets create_block to 0
+				if(isset($term_settings['create_block'])){
+					$term_settings['create_block'] = 0;
+				}
+				$save_term = drupal_write_record('bt_taxonomy_block', $term_settings, 'tid');
+			}
+		}
+	}
+}
+
+
+function bt_taxonomy_block_create_instances($instances){
+	foreach($instances as $delta => $instance){
+		if(!empty($instance['bundle'])){
+			if(!field_info_instance('taxonomy_term', $instance['field_name'], $instance['bundle'])){
+				if(field_info_field($instance['field_name'])){
+					field_create_instance($instance);
+				}
+			}
+		}
+	}
+}
+
+function bt_taxonomy_block_create_fields($fields){
+	foreach($fields as $name => $field){
+		if(!field_info_field($field['field_name'])){
+			if(!empty($field['module']) && module_exists($field['module'])){
+				field_create_field($field);
+			} else {
+				field_create_field($field);
+			}
+		}
+	}
+}
+
+
+function bt_taxonomy_term_delete_record($tid){
+	$delete = db_delete('bt_taxonomy_block')
+	->condition('tid', $tid)
+	->execute();
+}
+
+
+function bt_taxonomy_block_delete_taxonomy_settings_submit($form, &$form_state){
+	$tid = $form_state['values']['tid'];
+	$delete_term = db_delete('bt_taxonomy_block')
+	->condition('tid', $tid)
+	->execute();
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function bt_taxonomy_block_block_info() {
+	$blocks = array();
+	$taxonomy_blocks = bt_taxonomy_block_list_vocabularies();
+	if(!empty($taxonomy_blocks['vocabularies'])){
+		foreach($taxonomy_blocks['vocabularies'] as $vocab_name => $vid){
+			if(!is_array($vid)){
+				$vocab_settings = bt_taxonomy_load_vocabulary_settings($vid);
+				if(empty($vocab_settings) || empty($vocab_settings['bt_taxonomy_block_vocab_display'])){
+					$children = taxonomy_get_tree($vid);
+					if(!empty($children)){
+						foreach($children as $delta => $child){
+							if($is_block = _bt_taxonomy_load_term_settings($child->tid)){
+								$id = 'btbterm_'. $vid .'_'. $child->tid;
+								$blocks[$id] = array(
+									'info' => t('Taxonomy Block: @name', array('@name' => $child->name)),
+									'cache' => DRUPAL_NO_CACHE,
+								);
+							}
+						}
+					}
+				} else {
+					if($vocabulary = taxonomy_vocabulary_load($vid)){
+						$name = $vocabulary->name;
+						$id = 'btbvocab_'. $vid . '_' . 'vocab';
+						$blocks[$id] = array(
+							'info' => t('Taxonomy Vocabulary Block: @name', array('@name' => $name)),
+							'cache' => DRUPAL_NO_CACHE,
+						);
+					}
+				}
+			}
+		}
+	}
+	return $blocks;
+}
+
+function _bt_taxonomy_block_check_display($delta = ''){
+	$taxonomy_blocks = bt_taxonomy_block_list_vocabularies();
+	$display = FALSE;
+	$prefix = 'bt_taxonomy_block_';
+	if(!empty($taxonomy_blocks['vocabularies'])){
+		$ids = explode("_", $delta);
+		if(!empty($ids[1]) && !empty($ids[2])){
+			list($module, $v_vid, $v_tid) = $ids;
+			if($v_tid != 'vocab'){
+				if($term = taxonomy_term_load($v_tid)){
+					foreach($taxonomy_blocks['vocabularies'] as $vocab_name => $vid){
+						if($v_vid == $vid){
+							$display = array(
+								'term' => $v_tid,
+							);
+							break;
+						}
+					}
+				}
+			} else {
+				$display = array(
+					'vocabulary' => $v_vid,
+				);
+			}
+		}
+	}
+	return $display;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function bt_taxonomy_block_block_view($delta = '') {
+	$block = array();
+	if($taxonomy = _bt_taxonomy_block_check_display($delta)){
+		$blocks = new BTaxonomyBlock($taxonomy);
+		$blocks->buildDisplay();
+		$content = $blocks->renderTaxonomyBLock();
+		$block_title = '';
+		if(empty($blocks->block_title)){
+			if(!empty($blocks->settings->title_display) && $blocks->settings->title_display == 'show'){
+				$block_title = $blocks->term->name;
+			}
+		} else {
+			$block_title = $blocks->block_title;
+		}
+		
+		$block['subject'] = $block_title;
+		$block['content'] = $content;
+		if(!empty($blocks->block_desc)){
+			$r = new ApiContent();
+			$desc = $r->type('html_tag')->tag('div')->value($blocks->block_desc)->_class('taxonomy-vocab-block-desc')->r();
+			array_unshift($block['content'], $desc);
+			// @TODO BLOCK DESC
+		}
+	}
+	return $block;
+}
+
+function bt_taxonomy_block_theme() {
+	return array(
+		'bt_taxonomy_block' => array(
+			'variables' => array('taxonomy_term' => NULL),
+		),
+	);
+}
+
+function theme_bt_taxonomy_block($variables) {
+	$content = array();
+	$fields = array_intersect_key($variables['taxonomy_term'], array_flip(element_children($variables['taxonomy_term'])));
+	$term_name = $variables['taxonomy_term']['#term']->name;
+	$settings = $variables['taxonomy_term']['#settings'];
+	$title_display = !empty($settings->title_display) ? $settings->title_display : 'show';
+	switch($title_display){
+	case 'show':
+		$fields['name'] = array(
+			'#markup' => '<h2 class="block-title">'. $term_name .'</h2>',
+		);
+		break;
+	case 'hide':
+		// ... hide :)
+		break;
+	default:
+		$fields['name'] = array(
+			'#markup' => $title_display,
+		);
+		break;
+	}
+	return $fields;
+}
+
+
+
+function bt_taxonomy_block_create_instance($bundle){
+	if(!field_info_instance('taxonomy_term', 'taxonomy_block_display_settings', $bundle)){
+		$instance = array(
+			'field_name' => 'taxonomy_block_display_settings',
+			'entity_type' => 'taxonomy_term',
+			'label' => 'Custom Display Settings',
+			'bundle' => $bundle,
+			'required' => FALSE,
+			'widget' => array(
+				'type' => 'text_textarea',
+				'weight' => 3,
+				'max_length' => '',
+			),
+		);
+		field_create_instance($instance);
+	}
+}
+
+
+
+function btt_taxonomy_block_process_plugin_contextual_links(&$links, $element){
+	if(!empty($element['#element']['#block']->delta)){
+		if($t_block = explode('_', $element['#element']['#block']->delta)){
+			if(isset($t_block[1]) && isset($t_block[2])){
+				list($module, $vid, $tid) = $t_block;
+				if($tid == 'vocab'){
+					if($plugin = bt_taxonomy_load_vocabulary_settings($vid)){
+						if($vocab = taxonomy_vocabulary_load($vid)){
+							bt_taxonomy_block_add_vocabulary_contextual_links($links, $vocab->machine_name);
+						}
+					}
+				} else if(taxonomy_term_load($tid)){
+					bt_taxonomy_block_add_term_contextual_links($links, $tid);
+				}
+			}
+		}
+	}
+}
+
+
+/**
+ * Implements hook_contextual_links_view_alter().
+ */
+function bt_taxonomy_block_contextual_links_view_alter(&$element, $items) {
+	$links = &$element['#links'];
+	btt_taxonomy_block_process_plugin_contextual_links($links, $element);
+}
+
+function bt_taxonomy_block_add_term_contextual_links(&$links, $tid){
+	$links[$tid . 'config'] = array(
+		'title' => t('Edit term'),
+		'href' => 'taxonomy/term/'. $tid .'/edit',
+	);
+}
+
+function bt_taxonomy_block_add_vocabulary_contextual_links(&$links, $vocabulary){
+	$redirect = current_path();
+	$links[$vocabulary . 'config'] = array(
+		'title' => t('Configure plugin'),
+		'href' => 'admin/structure/taxonomy/'. $vocabulary .'/edit',
+		'query' => array(
+			'destination' => $redirect,
+		),
+	);
+	$links[$vocabulary. 'add'] = array(
+		'title' => t('Add items'),
+		'href' => 'admin/structure/taxonomy/'. $vocabulary .'/add',
+		'query' => array(
+			'destination' => $redirect,
+		),
+	);
+	$links[$vocabulary . 'edit'] = array(
+		'title' => t('Edit items'),
+		'href' => 'admin/structure/taxonomy/'. $vocabulary,
+		'query' => array(
+			'destination' => $redirect,
+		),
+	);
+}
+
+
+
+function bt_taxonomy_block_flush_caches() {
+  return array('cache_bt_taxonomy_block');
+}

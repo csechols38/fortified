@@ -1,0 +1,4 @@
+name = Taxonomy BLock Layouts
+description = Allows the Taxonomy Blocks to have layouts.
+core = 7.x
+package = Taxonomy Block Plugins

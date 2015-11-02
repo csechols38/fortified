@@ -1,0 +1,9 @@
+name = Ipdatatel Module
+description = Ipdatatel api module
+core = 7.x
+package = Fortified
+
+dependencies[] = entity
+dependencies[] = views
+
+files[] = ipdatatel.controller.inc

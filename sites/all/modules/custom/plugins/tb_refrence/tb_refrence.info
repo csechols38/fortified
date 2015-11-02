@@ -1,0 +1,4 @@
+name = Taxonomy BLock Entity Refrence
+description = Entity Refrence plugin for taxonomy block
+core = 7.x
+package = Taxonomy Block Plugins

@@ -1,0 +1,28 @@
+<?php
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function about_us_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'about_us' => array(
+			'title' => 'About Us',
+			'handler' => 'AboutUsTermhandler',
+			'version' => '1.0',
+			'tier' => 1,
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'about_us',
+			'module_title' => 'About Us',
+			'settings' => array(),
+			'layout_plugins' => array(
+				'path' => 'layouts',
+			),
+		),
+	);
+	return $plugins;
+}

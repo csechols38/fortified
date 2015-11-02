@@ -1,0 +1,4 @@
+name = Registration Module
+description = Registration Module
+core = 7.x
+package = Fortified

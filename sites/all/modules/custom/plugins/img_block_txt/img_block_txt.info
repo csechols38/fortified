@@ -1,0 +1,4 @@
+name = Image Block Text
+description = Aloows for an image, block, text plugin for taxonomy block
+package = Taxonomy Block Plugins
+core = 7.x

@@ -1,0 +1,55 @@
+<?php
+
+function taxonomy_block_layouts_schema() {
+ /*
+ $schema['bt_taxonomy_block'] = array(
+    'description' => 'Stores data for the Taxonomy Block Layouts.',
+    'fields' => array(
+      'vid' => array(
+        'description' => 'The Taxonomy Vocabulary id.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'tid' => array(
+        'description' => 'The Taxonomy Term id.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'create_block' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ),
+      'title_display' => array(
+        'description' => 'The title display settings.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => 'hide',
+      ),
+      'view_mode' => array(
+      	'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+      'token_value_type' => array(
+      	'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+      'settings' => array(
+      	'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE, 
+      ),
+    ),
+  );
+  $schema['cache_bt_taxonomy_block'] = drupal_get_schema_unprocessed('system', 'cache');
+  return $schema;
+*/
+}

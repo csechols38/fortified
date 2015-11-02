@@ -1,0 +1,112 @@
+<?php
+
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function img_block_txt_taxonomy_block_plugin_displays_info($plugins){
+	$plugins += array(
+		'img_block_txt' => array(
+			'handler' => 'IBTDisplaysHandler',
+			'label' => t('Image Block Text'),
+			'module' => 'img_block_txt',
+			'module_title' => 'Image Block Text',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'settings' => array(
+				'title' => '',
+				'body' => '',
+			),
+		),
+	);
+	return $plugins;
+}
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function img_block_txt_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'img_block_txt' => array(
+			'title' => 'Image Block Text',
+			'handler' => 'IBTTermsHandler',
+			'version' => '1.0',
+			'tier' => 1,
+			'module_title' => 'Image Block Text',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'img_block_txt',
+			'layout_plugins' => array(
+				'path' => 'term_layouts',
+			),
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function img_block_txt_taxonomy_block_plugin_vocabularys_info($plugins){
+	$plugins += array(
+		'img_block_txt' => array(
+			'title' => 'Image Block Text',
+			'handler' => 'IBTVocabsHandler',
+			'module_title' => 'Image Block Text',
+			'instances' => TRUE,
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'stylesheets' => array(
+				'less' => array(
+					'path' => 'less/',
+					'excludes' => array(),
+				),
+			),
+			'module' => 'img_block_txt',
+			'settings' => array(),
+			'layout_plugins' => array(
+				'path' => 'layouts',
+			),
+		),
+	);
+	return $plugins;
+}
+
+
+
+/*
+function img_block_txt_field_formatter_info() {
+  return array(
+    'img_block_text' => array(
+      'label' => t('Title + Image'),
+      'field types' => array('entityreference'),
+    ),
+  );
+}
+*/
+
+
+
+/*
+function img_block_txt_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, &$items, $display){
+	if($display['type'] == 'img_block_text'){
+		if(!empty($items)){
+			foreach($items as $delta => $value){
+				$tid = $value['target_id'];
+				$entity = node_load($tid);
+
+			}
+			return $items;
+		}
+	}
+}
+*/
+

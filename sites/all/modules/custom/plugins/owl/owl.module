@@ -1,0 +1,108 @@
+<?php
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function owl_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'owl' => array(
+			'title' => 'Owl WIth Icons',
+			'handler' => 'OwlTermsHandler',
+			'version' => '1.0',
+			'tier' => 1,
+			'module_title' => 'Owl',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'owl',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+/**
+ * implements hook_taxonomy_block_plugin_vocabularys_info
+ */
+function owl_taxonomy_block_plugin_vocabularys_info($plugins){
+	$plugins += array(
+		'owl' => array(
+			'title' => 'Owl',
+			'handler' => 'OwlTestimonialsVocabsHandler',
+			'module_title' => 'Owl',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'layout_plugins' => array(
+				'path' => 'layouts',
+			),
+			'module' => 'owl',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+
+/**
+ * hook_field_formatter_info()
+ *
+ * @return unknown
+ */
+function owl_field_formatter_info() {
+	$formatters = array();
+
+	$formatters['owl_carousel'] = array(
+		'label' => t( 'Owl Carousel' ),
+		'field types' => array( 'image' ),
+	);
+
+	return $formatters;
+}
+
+/**
+ * hook_field_formatter_view()
+ *
+ * @param unknown $entity_type
+ * @param unknown $entity
+ * @param unknown $field
+ * @param unknown $instance
+ * @param unknown $langcode
+ * @param unknown $items
+ * @param unknown $display
+ * @return unknown
+ */
+function owl_field_formatter_view( $entity_type, $entity, $field, $instance, $langcode, &$items, $display ) {
+	$element = array();
+	switch ( $display['type'] ) {
+		case 'owl_carousel':
+			if(!empty($items)){
+				$carousel = new OwlCarousel($items);
+				//$carousel->buildItems();
+				$items = array();
+				//$items[0] = $carousel->carousel;
+				return $items;
+			}
+			
+			break;
+	}
+}
+
+
+function owl_install(){
+	if(module_exists('linkimagefield')){
+		$field = array(
+			'field_name' => 'field_owl_link_image', 
+			'type' => 'linkimagefield'
+		);
+		if(!field_info_field('field_owl_link_image')){
+			field_create_field($field);
+		}
+	}
+}

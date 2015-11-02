@@ -1,0 +1,21 @@
+
+
+.img-block-text-vocabluary-wrapper .img-block-text-single{
+	float:left;
+	padding:10px 0px 10px 0px;
+	margin:0px 25px 0px 25px;
+}
+	
+.img-block-text-vocabluary-wrapper .img-block-text-desc{
+	font-size: 12px;
+	max-width: 300px;
+	color:#4d5c67;
+}
+
+.img-block-text-vocabluary-wrapper .img-block-text-main-body{
+	padding:10px;
+}
+
+.img-block-text-vocabluary-wrapper .img-block-text-entity-wrapper{
+	text-align: center;
+}

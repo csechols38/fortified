@@ -1,0 +1,27 @@
+<?php
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function tb_refrence_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'tb_refrence' => array(
+			'version' => 1.0,
+			'tier' => 1,
+			'title' => 'Entity Refrence',
+			'handler' => 'TbRefrenceTermsHandler',
+			'module_title' => 'Entity Refrence',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'layout_plugins' => array(
+				'path' => 'term_layouts',
+			),
+			'module' => 'tb_refrence',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}

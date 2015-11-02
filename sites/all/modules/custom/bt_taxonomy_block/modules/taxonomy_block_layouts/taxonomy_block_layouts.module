@@ -1,0 +1,14 @@
+<?php
+
+function taxonomy_block_layouts_menu() {
+	$items  = array();
+	$items['admin/config/btl/%/%'] = array(
+		'title' => 'Configure Layout',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('taxonomy_block_layouts_form', 3, 4),
+		'access arguments' => array('access administration pages'),
+		'file' => 'taxonomy_block_layouts.admin.inc',
+		'type' => MENU_NORMAL_ITEM,
+	);
+	return $items;
+}

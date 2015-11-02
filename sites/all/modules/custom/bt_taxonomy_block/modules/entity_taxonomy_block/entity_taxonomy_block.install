@@ -1,0 +1,34 @@
+<?php
+
+function entity_taxonomy_block_field_schema($field) {
+	switch($field['type']) {
+	case 'entity_taxonomy_block':
+	
+		$columns['vid'] = array(
+			'type' => 'int',
+			'unsigned' => TRUE,
+			'not null' => TRUE,
+		);
+		$columns['formatter'] = array(
+			'type' => 'varchar',
+			'length' => 255,
+			'not null' => FALSE,
+		);
+		$columns['entity_type'] = array(
+			'type' => 'varchar',
+			'length' => 255,
+			'not null' => FALSE,
+		);
+		$columns['bundle'] = array(
+			'type' => 'varchar',
+			'length' => 255,
+			'not null' => FALSE,
+		);
+
+		break;
+	}
+	return array(
+		'columns' => $columns,
+		'indexes' => array(),
+	);
+}

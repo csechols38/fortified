@@ -1,0 +1,6 @@
+name = Entity Taxonomy Block
+description = Allows the display of Taxonomy Block Vocabularies as a whole.
+core = 7.x
+package = BlueTree
+dependencies[] = token
+dependencies[] = bt_taxonomy_block

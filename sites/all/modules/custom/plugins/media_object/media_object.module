@@ -1,0 +1,184 @@
+<?php
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function media_object_taxonomy_block_plugin_displays_info($plugins){
+	$plugins += array(
+		'media_object' => array(
+			'handler' => 'MediaObjectDisplaysHandler',
+			'label' => t('Bootstrap Media Object'),
+			'module' => 'media_object',
+			'module_title' => 'Bootstrap Media Object',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'settings' => array(
+				'header' => '',
+				'direction' => 'left',
+				'path' => '',
+			),
+		),
+	);
+	return $plugins;
+}
+
+/*
+function media_object_init(){
+	dpm(field_info_field('field_image'));
+}
+*/
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function media_object_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'media_object' => array(
+			'title' => 'Bootstrap Media Object',
+			'handler' => 'MediaObjectTermsHandler',
+			'module_title' => 'Bootstrap Media Object',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'layout_plugins' => array(
+				'path' => 'term_plugins',
+			),
+			'module' => 'media_object',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function media_object_taxonomy_block_plugin_vocabularys_info($plugins){
+	$plugins += array(
+		'media_object' => array(
+			'title' => 'Bootstrap Media Object',
+			'handler' => 'MediaObjectVocabsHandler',
+			'machine' => 'media_object',
+			'module_title' => 'Bootstrap Media Object',
+			'load_term_plugins' => TRUE,
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'layout_plugins' => array(
+				'path' => 'layouts',
+			),
+			'module' => 'media_object',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+
+function build_media_object_display($term, $settings){
+	$direction = !empty($settings['direction'])
+		? $settings['direction']
+		: 'left';
+
+	$media_object = BtApi::Container(array('media', 'media-object-mod', 'media-object-mod-'. $direction), null, 0);
+
+	$image = &$term->field_image['und'][0];
+	if(!empty($settings['image_style'])){
+			$uri = file_create_url($image['uri']);
+		  $variables = array(
+	      'path' => $uri, 
+	      'alt' => 'Test alt',
+	      'title' => 'Test title',
+	      'width' => $settings['image_style']['width'],
+	      'height' => $settings['image_style']['height'],
+	      'attributes' => array(
+	      	'class' => array('media-image-styled'),
+	      ),
+      );
+		$img = theme('image', $variables);
+	} else {
+		$img = field_view_value('taxonomy_term', $term, 'field_image', $image, 'full', $langcode = NULL);
+	}
+
+
+
+	$media_object['image'] = array(
+		'#theme' => 'link',
+		'#path' => '',
+		'#text' => render($img),
+		'#weight' => -100,
+		'#options' => array(
+			'html' => true,
+			'fragment' => ' ',
+			'attributes' => array(
+				'class' => array("pull-$direction", "media-object-image"),
+			),
+		),
+	);
+
+	$media_object['body'] = BtApi::Container(array('media-body'), null, 1);
+	$header = !empty($settings['header']) ? $settings['header'] : '';
+	$path = !empty($settings['path']) ? $settings['path'] : taxonomy_term_uri($term);
+	if(!empty($path['path'])){
+		$path = $path['path'];
+	}
+	$link = l($header, $path);
+	$options = array(
+		'attributes' => array(
+			'class' => array('btn btn-primary'),
+		),	
+	);
+	$media_object['body']['header'] = BtApi::htmlTag($link, 'div', array('media-heading', 'h2'), 0);
+	$media_object['body']['description'] = BtApi::htmlTag($term->description, 'div', array('media-body-desc'), 1);
+	$media_object['body']['link'] = BtApi::htmlTag(l('Learn more', $path, $options), 'div', array('l-more-b'), 2);
+	return $media_object;
+}
+
+
+function media_object_theme() {
+	return array(
+		'media_object' => array(
+			'variables' => array('term' => NULL),
+		),
+	);
+}
+
+function theme_media_object($term) {
+	return build_media_object_display((object)$term, $term['settings']);
+}
+
+
+function media_object_form_default($plugin_type, $default_values){
+	$element['header'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Header'),
+		'#default_value' => !empty($default_values['header']) ? $default_values['header'] : '',
+	);
+	if($plugin_type != 'display'){
+		$element['path'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Path'),
+			'#default_value' => !empty($default_values['path']) ? $default_values['path'] : '',
+		);
+		$element['direction'] = array(
+			'#type' => 'select',
+			'#options' => array(
+				'left' => t('Left'),
+				'right' => t('Right'),
+			),
+			'#title' => t('Direction'),
+			'#default_value' => !empty($default_values['direction']) ? $default_values['direction'] : 'left',
+		);
+	}
+	return $element;
+}
+

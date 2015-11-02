@@ -1,0 +1,98 @@
+<?php
+
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function fc_taxonomy_block_plugin_displays_info($plugins){
+	$plugins += array(
+		'owl_slider_single' => array(
+			'handler' => 'FcDisplaysHandler',
+			'label' => t('Owl Slider Single Row'),
+			'module' => 'fc',
+			'module_title' => 'Featured COntent',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'settings' => array(
+				'title' => '',
+				'number_of_items' => 5,
+			),
+		),
+	);
+	return $plugins;
+}
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function fc_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'owl_slider_single' => array(
+			'title' => 'Owl Slider Single Row',
+			'handler' => 'FcTermsHandler',
+			'module_title' => 'Featured Content',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'fc',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_alter();
+ *
+ */
+function fc_taxonomy_block_plugin_alter(&$plugins){
+	$plugins += array(
+		'owl_slider_single' => 'Owl Content Slider Single Line'
+	);
+}
+
+
+
+function fc_add_carousel_dependacies(){
+	drupal_add_js(drupal_get_path('module', 'fc') . '/fc.js', array('type' => 'file', 'weight' => 100, 'scope' => 'header'));
+}
+
+
+
+
+/**
+ * implements hook_entity_taxonomy_block_plugin_alter();
+ */
+function fc_entity_taxonomy_block_plugin_alter(&$plugins){
+	$plugins += array(
+		'fc' => array(
+			'label' => t('Owl Content Slider'),
+			'settings' => array(
+				'number_of_items' => 5,
+			),
+		),
+	);
+}
+
+
+
+function fc_entity_taxonomy_block_display_alter($display, &$items){
+	if($display['type'] == 'fc' && !empty($items)){
+		$html = array();
+		$html['wrapper'] = BtApi::Container(array('main-featured-content-image-wrapper'), 'featured-content-carousel');
+		foreach($items as $delta => $vid){
+			$item = entity_taxonomy_block_load_vocab_children($vid['vid']);
+			$html['wrapper'][$delta] = $item;
+		}
+		$items = $html;
+	}
+}

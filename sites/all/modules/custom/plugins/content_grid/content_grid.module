@@ -1,0 +1,152 @@
+<?php
+
+
+function content_grid_menu(){
+	$items = array();
+	$items['content-grid/load/%'] = array(
+		'page callback' => 'content_grid_ajax_load_term',
+		'page arguments' => array(2),
+		'access callback' => TRUE,
+		'type' => MENU_CALLBACK,
+	);
+	return $items;
+}
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function content_grid_taxonomy_block_plugin_displays_info($plugins){
+	$plugins += array(
+		'content_grid_ajax' => array(
+			'handler' => 'ContentGridAjaxDisplayHandler',
+			'label' => t('Content Grid Ajax'),
+			'module' => 'content_grid',
+			'module_title' => 'Content Grid',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'stylesheets' => array(
+				'less' => array(
+					'path' => 'less/',
+					'excludes' => array(),
+				),
+			),
+			'settings' => array(
+				'title' => '',
+				'mobile_enabled' => 'yes',
+			),
+		),
+	);
+	return $plugins;
+}
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function content_grid_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'content_grid_ajax' => array(
+			'title' => 'Content Grid Ajax Layout',
+			'handler' => 'ContentGridAjaxTermHandler',
+			'module_title' => 'Content Grid',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'content_grid',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+
+function content_grid_ajax_load_term($tid){
+	if($term = taxonomy_term_load($tid)){
+		$html = array();
+		$html['wrapper'] = BtApi::Container(array('content-grid-ajax-featured'));
+		$term->settings = array(
+			'path' => '',
+			'direction' => 'left',
+			'header' => $term->name,
+			'image_style' => array(
+				'width' => '510px',
+				'height' => '285px',							
+			),
+		);
+		$featured = theme('media_object', (array) $term);
+		$html['wrapper']['featured']['term'] = BtApi::htmlTag(render($featured), 'div', array('content-grid-ajax-term-featured'), -1);
+		$commands[] = ajax_command_html('.content-grid-ajax-term-featured', render($html));
+		$page = array('#type' => 'ajax', '#commands' => $commands);
+		//ajax_deliver
+		ajax_deliver($page);
+	}
+}
+
+
+function _content_grid_load_path($content){
+	$path = !empty($content->settings->settings['content_grid']['path']) ? $content->settings->settings['content_grid']['path'] : '';
+	$link = l($content->term->name, $path);
+	if(empty($path)){
+		//$path = taxonomy_term_uri($content->term);
+	}
+	return array('link' => $link, 'path' => $path);
+}
+
+
+function _content_grid_load_image($content, $settings, $ajax = false){
+	$image = &$content->term->field_image['und'][0];
+	$options = array(
+		'html' => TRUE,
+	);
+	$path = _content_grid_load_path($content);
+	$path = $path['path'];
+	
+	if(!empty($content->term->field_image['und'][0])){
+			$image = &$content->term->field_image['und'][0];
+			$uri = file_create_url($image['uri']);
+		  $variables = array(
+	      'path' => $uri, 
+	      'alt' => 'Test alt',
+	      'title' => 'Test title',
+	      'width' => '240px',
+	      'height' => '180px',
+	      'attributes' => array(
+	      	'class' => array('media-image-styled'),
+	      ),
+      );
+		$img = theme('image', $variables);
+		
+		if($ajax){
+			$path = 'content-grid/load/'. $content->term->tid;
+			$options += array(
+				'attributes' => array(
+					'class' => array('use-ajax'),
+				),
+			);
+		}
+		
+		$image = array(
+			'#theme' => 'link',
+			'#path' => $path,
+			'#text' => render($img),
+			'#weight' => -100,
+			'#options' => array(
+				'html' => true,
+				'attributes' => array(
+					'class' => array('use-ajax'),
+				),
+			),
+		);
+	
+	}
+	return render($image);
+}
+
+function content_grid_add_carousel_dependacies(){
+	drupal_add_css(drupal_get_path('module', 'content_grid') . '/css/content_grid.css', array('type' => 'file', 'weight' => 100, 'scope' => 'header'));
+}

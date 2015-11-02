@@ -1,0 +1,68 @@
+<?php
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function social_icons_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'social_icons' => array(
+			'title' => 'Social Media Icons',
+			'handler' => 'SocialIconsTermsHandler',
+			'version' => '1.0',
+			'tier' => 1,
+			'module_title' => 'Social Media Icons',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'social_icons',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function social_icons_taxonomy_block_plugin_vocabularys_info($plugins){
+	$plugins += array(
+		'social_icons' => array(
+			'title' => 'Social Media Icons',
+			'handler' => 'SocialIconsVocabsHandler',
+			'module_title' => 'Social Media Icons',
+			'tier' => 1,
+			'instances' => TRUE,
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'social_icons',
+			'settings' => array(),
+			'layout_plugins' => array(
+				'path' => 'layouts',
+			),
+		),
+	);
+	return $plugins;
+}
+
+
+
+function social_icons_glyphicon_class_list($type){
+	$types = array(
+		'facebook' => 'fa fa-fw fa-facebook',
+		'twitter' => 'fa fa-fw fa-twitter',
+		'google_plus' => 'fa fa-fw fa-google-plus',
+		'linkedin' => 'fa fa-fw fa-linkedin',
+		'dribble' => 'fa fa-fw fa-dribbble',
+	);
+	if(array_key_exists($type, $types)){
+		return $types[$type];
+	} else {
+		return false;
+	}
+}

@@ -1,0 +1,4 @@
+name = About Us Plugins
+description = About Us Plugins
+package = Taxonomy Block Plugins
+core = 7.x

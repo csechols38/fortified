@@ -1,0 +1,6 @@
+name = Content Grid
+description = Content Grid Plugin. Displays multiple terms in a grid layout.
+core = 7.x
+package = Fortified
+dependencies[] = media_object
+package = Taxonomy Block Plugins

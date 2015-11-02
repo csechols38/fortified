@@ -1,0 +1,4 @@
+name = Alarm Module
+description = Handles alarm systems.
+core = 7.x
+package = Fortified

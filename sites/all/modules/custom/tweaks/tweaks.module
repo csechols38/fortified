@@ -1,0 +1,180 @@
+<?php
+	
+	
+	// CRM server conection data
+define('CRM_HOST', 'fortified.bitrix24.com'); // your CRM domain name
+define('CRM_PORT', '443'); // CRM server port
+define('CRM_PATH', '/crm/configs/import/lead.php'); // CRM server REST service path
+
+// CRM server authorization data
+define('CRM_LOGIN', 'colton.echols@fortifiedsecurityservices.com'); // login of a CRM user able to manage leads
+define('CRM_PASSWORD', 'Honda388!'); // password of a CRM user
+
+
+function tweaks_init(){
+	//drupal_add_js(drupal_get_path('module', 'tweaks') . '/js/tweaks.form.js');
+}
+
+
+function tweaks_form_alter(&$form, &$form_state, $form_id){
+	switch($form_id){
+	case 'webform_client_form_12':
+	case 'webform_client_form_34':
+		$form['#submit'][] = 'fr_tweaks_email_form_submit';
+		$form['submitted']['phone_number']['#type'] = 'masked_input';
+		$form['submitted']['phone_number']['#mask'] = '(999)999-9999';
+		$form['submitted']['phone_number']['#attributes']['class'][] = 'form-control';
+		$honeypot = md5(uniqid(rand(), true));
+		$form['submitted']['hpf'] = array(
+		  '#type' => 'hidden', 
+		  '#value' => $honeypot
+		);
+		$form['submitted'][$honeypot] = array(
+		  '#type' => 'textfield',
+		  '#title' => '',
+		  '#attributes' => array(
+			  'style' => array('display:none;'),
+		  ),
+		);
+		$form['#validate'][] = 'tweaks_contact_form_validate';
+		
+		break;
+	}
+}
+
+
+function tweaks_contact_form_validate($form, &$form_state){
+	$fid = $form_state['values']['submitted']['hpf'];
+	$honeypot = $form_state['values']['submitted'][$fid];
+	if(!empty($honeypot)){
+		$form_state['rebuild'] = true;
+	}
+}
+
+
+function fr_tweaks_email_form_submit($form, &$form_state){
+	$base = $form_state['input']['submitted'];
+	tweaks_create_lead($base);
+	tweaks_send_email($base);
+}
+
+function tweaks_send_email($base){
+	module_load_include('php', 'tweaks', 'phpmailer/class.phpmailer');
+	$body = '<html>
+			<body>
+				<p>A new lead lead has been submitted from <strong>'.$base['first_name'].'</strong> On '.date('Y-m-d').'.</p><br/>
+				<p>Lead Contact Info:<br/>
+				Name: '.$base['first_name'].'<br/>
+				Primary Phone: '.$base['phone_number'].'<br/>
+				Email: '.$base['email'].'<br/>
+				Message: '.$base['message'].'
+				</p>
+			</body>
+		</html>';
+	define('GUSER', 'no-reply@fortifiedsecurityservices.com'); // GMail username
+	define('GPWD', 'FortifieD!'); // GMail password
+	global $error;
+	$mail = new PHPMailer();  // create a new object
+	$mail->IsSMTP(); // enable SMTP
+	$mail->SMTPDebug = 0;  // debugging: 1 = errors and messages, 2 = messages only
+	$mail->SMTPAuth = true;  // authentication enabled
+	$mail->SMTPSecure = 'ssl'; // secure transfer enabled REQUIRED for GMail
+	$mail->Host = 'smtp.gmail.com';
+	$mail->Port = 465;
+	$mail->Username = GUSER;
+	$mail->Password = GPWD;
+	$mail->SetFrom('no-reply@fortifiedsecurityservices.com', 'Fortified Security Services');
+	$mail->Subject = 'You have a new web lead From '.$base['first_name'].'';
+	$mail->Body = $body;
+	$mail->IsHTML(true);
+	$mail->AddAddress('info@fortifiedsecurityservices.com');
+	if(!$mail->Send()) {
+		$error = 'Mail error: '.$mail->ErrorInfo;
+		$success = 'Failed to notify Customer';
+	} else {
+		$error = 'Message sent!';
+		$success = 'Customer has been notified';
+	}
+}
+
+
+function tweaks_create_lead($base){
+	$bitrix = new BitrixApi(CRM_PATH);
+	
+	$data = array(
+		'LOGIN' => CRM_LOGIN,
+		'PASSWORD' => CRM_PASSWORD,
+		'TITLE' => $base['first_name'],
+		'NAME' => $base['first_name'],
+		'PHONE_WORK' => $base['phone_number'],
+		'EMAIL_WORK' => $base['email'],
+		'COMMENTS' => $base['message'],
+	);
+	
+	$result = $bitrix->setData($data)->makeHttpReq();
+}
+
+
+
+class BitrixApi {
+
+  public $http_options = array(
+    'data' => '',
+    'timeout' => 30,
+    'headers' => array('Content-Type' => 'application/x-www-form-urlencoded'),
+    'method' => 'POST',
+  );
+  public $result;
+
+  public function __construct($path, $http_options = array()){
+    $this->api_url = 'https://fortified.bitrix24.com' . $path;
+    $this->http_options = array_replace($this->http_options, $http_options);
+  }
+
+  public function setData($data){
+    $options = &$this->http_options;
+    $strPostData = '';
+    foreach ($data as $key => $value){
+			$strPostData .= ($strPostData == '' ? '' : '&').$key.'='.urlencode($value);
+		}
+    $options['data'] = $strPostData;
+    return $this;
+  }
+
+  public function makeHttpReq(){
+    $this->result = drupal_http_request($this->api_url, $this->http_options);
+    return $this;
+  }
+
+  public function formatResponse ($response) {
+    $formated_response = array();
+    if ($response->result->status_message == "OK") {
+      $data = $response->result->data;
+      $formated_response = json_decode($data);
+    }
+    return $formated_response;
+  }
+
+}
+
+
+
+
+
+function tweaks_node_view_alter(&$build){
+	if(!empty($build['#bundle']) && $build['#bundle'] == 'landing_page'){
+		//$build['field_features']
+		if(!empty($build['field_features'])){
+			$children = array_intersect_key($build['field_features'], array_flip(element_children($build['field_features'])));
+			if(isset($children)){
+				foreach($children as $delta => $val){
+					$markup  = '<li class="feature-li">';
+					$markup .= '<span class="glyphicon glyphicon-ok"></span>';
+					$markup .= $val['#markup'];
+					$markup .= '</li>';
+					$build['field_features'][$delta]['#markup'] = $markup;
+				}
+			}
+		}
+	}
+}

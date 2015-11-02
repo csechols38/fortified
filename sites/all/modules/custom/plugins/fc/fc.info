@@ -1,0 +1,4 @@
+name = Featured Content
+description = Featured Content Module
+core = 7.x
+package = Taxonomy Block Plugins

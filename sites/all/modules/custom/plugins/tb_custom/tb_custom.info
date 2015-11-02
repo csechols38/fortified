@@ -1,0 +1,5 @@
+name = Taxonomy Block Custom Display
+description = Custom display settings for taxonomy block. - with tokens...
+core = 7.x
+package = Taxonomy Block Plugins
+dependencies[] = token

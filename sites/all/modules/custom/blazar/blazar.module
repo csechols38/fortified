@@ -1,0 +1,45 @@
+<?php
+
+/*
+ * implements hook_menu()
+ */
+function blazar_menu() {
+	$items  = array();
+	$items['admin/config/system/blazar'] = array(
+		'title' => 'Blazar Settings',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('blazar_settings_form'),
+		'access arguments' => array('access administration pages'),
+		'file' => 'blazar.admin.inc',
+		'type' => MENU_NORMAL_ITEM,
+	);
+	$items['admin/structure/types/manage/%/%/blazar'] = array(
+		'title' => 'Blazar Display',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('blazar_display_form', 4),
+		'access arguments' => array('access administration pages'),
+		'file' => 'includes/blazar_display_form.inc',
+		'type' => MENU_LOCAL_TASK,
+	);
+	return $items;
+}
+
+
+
+function blazar_form_alter(&$form, &$form_state, $form_id){
+	switch($form_id){
+	case 'field_ui_display_overview_form':
+		//blazar_bundle_form($form, $form_state);
+		break;
+	}
+}
+
+
+function blazar_check_bundle($bundle){
+	$bundles = variable_get('blazar_bundles', array());
+	if(in_array($bundle, $bundles)){
+		return 1;
+	} else {
+		return 0;
+	}
+}

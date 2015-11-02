@@ -1,0 +1,221 @@
+<?php
+
+/*
+ * @ inplements hook_form_alter();
+ */
+function nah_slick_form_alter(&$form, &$form_state, $form_id){
+	if($form_id == 'slider_node_form'){
+		module_load_include('inc', 'nah_slick', 'includes/nah_slick_form');
+		$s_form = new NahSlickForm($form, $form_state);
+		$s_form->build();
+		$form['#submit'][] = 'nah_slick_create_form_submit';
+		$form['field_carousel_settings']['#attributes'] = array(
+			'style' => array('display:none;'),
+		);
+	}
+	if($form_id == 'group_node_form'){
+		if(!empty($form['field_slider']['und']['#default_value'][0])){
+			$exp = explode(":", $form['field_slider']['und']['#default_value'][0]);
+			$wanted = $exp[1];
+			list($nah, $slick, $nid) = explode("_", $wanted);
+			$current_nid = $form_state['build_info']['args'][0]->nid;
+			$destination = 'node/'. $current_nid .'/edit';
+			$form['field_slider']['edit'] = array(
+				'#type' => 'markup',
+				'#markup' => '<a href="/node/'. $nid .'/edit?destination='.$destination.'">Edit Slider</a> |',
+			);
+		}
+		$destination = !empty($destination) ? $destination : 'node/add/group';
+		$form['field_slider']['add'] = array(
+				'#type' => 'markup',
+				'#markup' => ' <a href="/node/add/slider-group/?destination='.$destination.'">Add Slider</a>',
+			);
+	}
+}
+
+/*
+ * @ form submit handler
+ */
+function nah_slick_create_form_submit($form, &$form_state){
+	$obj = array();
+	$obj['entities'] = !empty($form_state['values']['entities']) ? $form_state['values']['entities'] : '';
+	$obj['entity_type'] = $form_state['values']['entity_type'];
+	$obj['view_mode'] = !empty($form_state['values']['view_mode']) ? $form_state['values']['view_mode'] : '';
+	$obj['bundle_type'] = $form_state['values']['bundle_type'];
+	$obj['show_title'] = $form_state['values']['show_title'];
+	$obj['slick'] = !empty($form_state['values']['slick']) ? $form_state['values']['slick'] : '';
+	$title = $form_state['values']['title'];
+	$form_state['values']['field_carousel_settings']['und'][0]['value'] = serialize($obj);
+}
+
+/*
+ * @ inplements hook_block_info();
+ */
+function nah_slick_block_info(){
+	$blocks = array();
+	$s_blocks = NahSlick::query();
+	foreach($s_blocks as $nid => $title){
+		$node = node_load($nid);
+		$blocks["nah_slick_$nid"] = array(
+			'info' => t('@title', array('@title' => $node->title)),
+		);
+	}
+	return $blocks;
+}
+
+/*
+ * @ inplements hook_block_view();
+ */
+function nah_slick_block_view($delta = ''){
+	$s_blocks = new NahSlick;
+	switch($delta){
+	case in_array($delta, $s_blocks->slickBlocks()):
+		$node = $s_blocks->loadBlock($delta);
+		$block = array();
+		$block['subject'] = !empty($s_blocks->title) ? $s_blocks->title : '';
+		$content = $s_blocks->buildCarousel();
+		$block['content'] = render($content);
+		return $block;
+		break;
+	}
+}
+
+
+
+
+
+class NahSlick extends NahSlickPluginHandler {
+
+	public $html = array();
+	public $js_settings = array();
+	public $entity_type;
+
+
+	public function buildCarousel(){
+		
+		$content['wrapper'] = array(
+			'#type' => 'container',
+			'#attributes' => array(
+				'class' => array('slick-' . $this->settings['slick']['theme']),
+			),
+		);
+		
+		$content['wrapper']['slick'] = array(
+			'#theme' => 'slick_carousel',
+			'#options' => $this->settings['slick'],
+		);
+
+		foreach($this->entities as $nid => $node){
+			$node = node_view($node, $this->settings['view_mode'], $langcode = NULL);
+			foreach($this->handlers as $delta => $handler){
+				$handler->render($node, $this->entities[$nid]);
+			}
+			$content['wrapper']['slick']['#items'][] = array(
+				'#type' => 'html_tag',
+				'#tag' => 'div',
+				'#value' => render($node),
+				'#attributes' => array(
+					'class' => array('slick-slide'),
+				),
+			);
+		}
+		return $content;
+	}
+
+	public static function query(){
+		$query = new EntityFieldQuery();
+		$query->entityCondition('entity_type', 'node')
+			->entityCondition('bundle', 'slider')
+			->propertyCondition('status', 1);
+		$result = $query->execute();
+		if(!empty($result['node'])){
+			return $result['node'];
+		} else {
+			return false;
+		}
+	}
+
+
+	public function slickBlocks(){
+		$s_blocks = self::query();
+		$blocks = array();
+		foreach($s_blocks as $nid => $title){
+			$blocks[] = "nah_slick_$nid";
+		}
+		return $blocks;
+	}
+
+	public function loadBlock($delta = ''){
+		$data = explode("_", $delta);
+		$node = node_load($data[2]);
+		$this->node = $node;
+		$this->nid = $node->nid;
+		$this->loadBlockSettings($node);
+		return $node;
+	}
+
+	private function loadBlockSettings(){
+		$this->settings = unserialize($this->node->field_carousel_settings['und'][0]['value']);
+		if(!empty($this->settings['show_title'])){
+			$this->title = $this->node->title;
+		}
+		if(!empty($this->settings['entities'])){
+			$this->loadEntities($this->settings['entities']);
+		} else if (!empty($this->node->field_slides['und'])){
+			$entities = array();
+			$this->settings['view_mode'] = !empty($this->settings['view_mode']) ? $this->settings['view_mode'] : 'teaser';
+			foreach($this->node->field_slides['und'] as $delta => $tid){
+				$entities[$delta] = $tid['target_id'];
+			}
+			$this->loadEntities($entities);
+		}
+	}
+
+	private function loadEntities($entities){
+		$this->entities = array();
+		foreach($entities as $nid){
+			$entity = node_load($nid);
+			$this->entities[] = $entity;
+			$this->entity_type = $entity->type;
+		}
+		$this->load();
+	}
+}
+
+
+class NahSlickPluginHandler {
+	
+	private $plugins = array();
+	public $handlers = array();
+	
+	public function __construct(){
+	}
+	
+	public function load(){
+		module_load_include('inc', 'nah_slick', 'includes/nah_slick_plugins');
+		$plugins = array();
+	  foreach (module_implements('slick_plugin_info') as $module) {
+	    // will call all modules implementing hook_hook_name and 
+	    // push the results onto the $result array
+	    $plugin = module_invoke($module, 'slick_plugin_info');
+	    if(isset($plugin)){
+		    foreach($plugin as $name => $data){
+			    if(!empty($data['bundles']) && in_array($this->entity_type, $data['bundles'])){
+						module_load_include($data['file']['suffix'], $module, $data['file']['path']);
+						$handler = new $data['handler']();
+						$handler->preRender($this->entities);
+						$this->handlers[] = $handler;
+			    }
+		    }
+	    }
+	  }
+	}
+	
+}
+
+/*
+ * @ ajax callback();
+ */
+function _nah_slick_select_callback($form, &$form_state){
+	return $form['slick_carousel'];
+}

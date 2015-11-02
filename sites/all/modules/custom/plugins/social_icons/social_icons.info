@@ -1,0 +1,4 @@
+name = Social Icons
+description = Contains Social Icon plugins and layouts.
+package = Taxonomy Block Plugins
+core = 7.x

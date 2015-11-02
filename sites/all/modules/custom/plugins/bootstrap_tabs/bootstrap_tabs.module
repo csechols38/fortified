@@ -1,0 +1,53 @@
+<?php
+
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function bootstrap_tabs_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'bootstrap_tabs' => array(
+			'handler' => 'BootstrapTabsTermsHandler',
+			'label' => t('Bootstrap Tab'),
+			'module' => 'bootstrap_tabs',
+			'module_title' => 'Bootstrap Tabs',
+			'layout_plugins' => array(
+				'path' => 'term_layouts',
+			),
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function bootstrap_tabs_taxonomy_block_plugin_vocabularys_info($plugins){
+	$plugins += array(
+		'bootstrap_tabs' => array(
+			'handler' => 'BootstrapTabsVocabsHandler',
+			'label' => t('Bootstrap Tabs'),
+			'module' => 'bootstrap_tabs',
+			'module_title' => 'Bootstrap Tabs',
+			'load_term_plugins' => TRUE,
+			'layout_plugins' => array(
+				'path' => 'term_layouts',
+			),
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+
+

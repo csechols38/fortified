@@ -1,0 +1,235 @@
+<?php
+
+
+function entity_taxonomy_block_field_info() {
+	return array(
+		'entity_taxonomy_block' => array(
+			'label' => t('Entity Taxonomy Block'),
+			'description' => t("Media fields for Highroads content types"),
+			'default_widget' => 'entity_taxonomy_block_widget',
+			'default_formatter' => 'entity_taxonomy_block_formatter',
+		),
+	);
+}
+
+function entity_taxonomy_block_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+	return ;
+}
+
+function entity_taxonomy_block_field_is_empty($item, $field) {
+	return $item['vid'] == '_none' ? TRUE : FALSE;
+}
+
+function entity_taxonomy_block_field_widget_info() {
+	return array(
+		'entity_taxonomy_block_widget' => array(
+			'label' => t('Entity Taxonomy Block'),
+			'field types' => array('entity_taxonomy_block'),
+		),
+	);
+}
+
+
+function entity_taxonomy_block_field_widget_settings_form($field, $instance) {
+	$widget = $instance['widget'];
+	$settings = $widget['settings'];
+
+	return array();
+}
+
+function entity_taxonomy_block_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+	//Default values
+	$default_values = _entity_taxonomy_block_build_default_values($items, $delta);
+	switch ($instance['widget']['type']) {
+	case 'entity_taxonomy_block_widget':
+
+		$vocabularies = bt_taxonomy_block_list_vocabularies();
+		if(!empty($vocabularies['vocabularies'])){
+			$vocabularies = array_flip($vocabularies['vocabularies']);
+		}
+		$vocabularies += array('_none' => 'None');
+
+		$element['vid'] = array(
+			'#type' => 'select',
+			'#title' => t('@label', array('@label' => $instance['label'])),
+			'#options' => $vocabularies,
+			'#default_value' => !empty($default_values['vid']) ? $default_values['vid'] : '_none',
+			'#required' => TRUE,
+		);
+		$element['entity_type'] = array(
+			'#type' => 'value',
+			'#value' => $instance['entity_type'],
+		);
+		$element['bundle'] = array(
+			'#type' => 'value',
+			'#value' => $instance['bundle'],
+		);
+
+		break;
+	}
+
+	return $element;
+}
+
+function _entity_taxonomy_block_build_default_values($items, $delta) {
+	$default_values = array();
+	if (empty($items)) {
+		return NULL;
+	}else{
+		$empty_field = array_key_exists($delta, $items) ? FALSE : TRUE;
+		$values = !$empty_field ? $items[$delta] : $items[0];
+
+		foreach ($values as $item => $value) {
+			$default_values[$item] = (!empty($value) && !$empty_field) ? $value : NULL;
+		}
+	}
+	return $default_values;
+}
+
+// Function to help save text_format format to database
+
+/**
+ * Implements hook_field_presave().
+ */
+function entity_taxonomy_block_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
+	$media_field = $field['field_name'];
+	$current_node = $entity;
+	foreach ($items as $delta => $value) {
+		_entity_taxonomy_block_process($items[$delta], $delta, $field, $entity);
+	}
+}
+
+/**
+ * Prepares the item description and format for storage.
+ */
+function _entity_taxonomy_block_process(&$item, $delta = 0, $field, $entity) {
+	return $item;
+}
+
+
+function entity_taxonomy_block_field_formatter_info() {
+	$field_types = array('entity_taxonomy_block');
+	$field_formatters = array();
+	$formatters['entity_taxonomy_block'] = array(
+		'label' => t('Entity Taxonomy Block'),
+		'field types' => $field_types,
+	);
+
+	$plugin_manager = new BtPluginManager();
+	$plugins = $plugin_manager->loadPlugins('taxonomy_block_plugin_displays_info', true);
+	if(is_array($plugins)){
+		$formatters += $plugin_manager->loadPlugins('taxonomy_block_plugin_displays_info', true);
+	}
+	foreach($formatters as $name => $formatter){
+		$field_formatters[$name] = array(
+			'label' => !empty($formatter['label']) ? $formatter['label'] : '',
+			'field types' => !empty($formatter['field types']) ? $formatter['field types'] : $field_types,
+			'settings' => !empty($formatter['settings']) ? $formatter['settings'] : array(),
+		);
+	}
+	return $field_formatters;
+}
+
+
+function entity_taxonomy_block_field_formatter_settings_summary($field, $instance, $view_mode) {
+	$display = $instance['display'][$view_mode];
+	$settings = $display['settings'];
+
+	$summary = '';
+
+	$plugin = $display['type'];
+
+	$plugin_manager = entity_taxonomy_block_load_plugin_data('taxonomy_block_plugin_displays_info', $plugin);
+	if($plugin_manager){
+		$plugin_manager->displaySummary($plugin, $summary);
+	}
+
+	//drupal_alter('entity_taxonomy_block_display_summary', $display['type'], $summary);
+	return $summary;
+}
+
+function entity_taxonomy_block_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+	$display = $instance['display'][$view_mode];
+	$settings = $display['settings'];
+
+	$element = array();
+	$plugin = $display['type'];
+
+	$plugin_manager = entity_taxonomy_block_load_plugin_data('taxonomy_block_plugin_displays_info', $plugin);
+	if($plugin_manager){
+		$plugin_manager->pluginSettings($plugin, $settings, $view_mode, $element);
+	}
+
+	return $element;
+
+}
+
+
+function entity_taxonomy_block_load_plugin_data($function, $view_mode){
+	$plugin_manager = new BtPluginManager();
+	$plugins = $plugin_manager->loadPlugins('taxonomy_block_plugin_displays_info', true);
+	$load_plugin = $plugin_manager->loadPlugin($plugins, $view_mode);
+	if($load_plugin){
+		$plugin = $load_plugin;
+		$class = !empty($plugin['handler']) ? $plugin['handler'] : null;
+		if($class){
+			$p = new $class();
+			return $p;
+		}
+	} else {
+		return false;
+	}
+}
+
+function entity_taxonomy_block_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, &$items, $display) {
+
+	$plugin_manager = entity_taxonomy_block_load_plugin_data('taxonomy_block_plugin_displays_info', $display['type']);
+	if($plugin_manager){
+		$plugin_manager->displayOutput($display, $items);
+	} else if($display['type'] == 'entity_taxonomy_block'){
+			$html = array();
+			$html['wrapper'] = BtApi::Container(array('entity-taxonomy-block-item'));
+			foreach($items as $delta => $vid){
+				$item = entity_taxonomy_block_load_vocab_children($vid['vid']);
+				$html['wrapper'][$delta] = $item;
+			}
+			$items = $html;
+		}
+
+	//drupal_alter('entity_taxonomy_block_display', $display, $items);
+	return $items;
+}
+
+
+function entity_taxonomy_block_load_vocab_children($vid){
+	$displays = array();
+	if($children = taxonomy_get_tree($vid)){
+		foreach($children as $delta => $child){
+			$plugin = array(
+				'term' => $child->tid
+			);
+			$display = new BTaxonomyBlock($plugin);
+			$display->buildDisplay();
+			$content = $display->renderTaxonomyBLock();
+			$displays[] = $content;
+		}
+	}
+	return $displays;
+}
+
+function entity_taxonomy_block_load_vocab_child_terms($vid){
+	if($children = taxonomy_get_tree($vid)){
+		return $children;
+	}
+}
+
+
+function entity_taxonomy_block_display_term($term){
+	$plugin = array(
+		'term' => $term->tid
+	);
+	$display = new BTaxonomyBlock($plugin);
+	$display->buildDisplay();
+	$content = $display->renderTaxonomyBLock();
+	return $content;
+}

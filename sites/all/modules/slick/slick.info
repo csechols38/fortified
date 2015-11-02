@@ -1,0 +1,17 @@
+name = Slick
+description = Slick carousel for Drupal
+core = 7.x
+
+dependencies[] = libraries
+
+files[] = slick.module
+files[] = theme/slick.theme.inc
+files[] = slick.views.inc
+files[] = slick_plugin_style_slick.inc
+
+; Information added by Drupal.org packaging script on 2014-05-29
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "slick"
+datestamp = "1401371342"
+

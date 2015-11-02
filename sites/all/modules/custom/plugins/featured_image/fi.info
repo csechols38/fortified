@@ -1,0 +1,4 @@
+name = Featured Image Module
+description = Featured Image block
+core = 7.x
+package = Taxonomy Block Plugins

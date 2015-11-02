@@ -1,0 +1,139 @@
+<?php
+
+
+
+function owl_carousel_taxonomy_block_plugin_alter(&$plugins){
+	$plugins += array('owl_carousel' => 'Owl Carousel');
+}
+
+function owl_carousel_taxonomy_block_display_alter(&$content, $settings = array()){
+	_owl_carousel_add_dependencies();
+	switch($content->view_mode){
+		case 'owl_carousel':
+			if(!empty($content->term)){
+				$title = '';
+				if(!empty($content->settings->title_display)){
+					$title_display = $content->settings->title_display;
+					switch($title_display){
+					case 'show':
+						$title = '<h2 class="block-title">'. $content->term->name .'</h2>';
+						break;
+					case 'hide':
+						break;
+					default:
+						$title = '<h2 class="block-title">'. $title_display .'</h2>';
+						break;
+					}
+				}
+				$id = 'owl-carousel-'. $content->tid;
+				$content->taxonomy_term = array(
+					'#markup' => '',
+					'#prefix' => $title .'<div class="owl-carousel" id="owl-carousel-'. $id .'">',
+					'#suffix' => '</div>',
+				);
+				if(!empty($settings['owl_carousel'])){
+					$settings['owl_carousel']['id'] = $id;
+					$break_points = array('itemsDesktop', 'itemsDesktopSmall', 'itemsTablet', 'itemsMobile');
+					foreach($break_points as $delta => $value){
+						if(array_key_exists($value, $settings['owl_carousel'])){
+							$explode_settings = explode(',', $settings['owl_carousel'][$value]);
+							if(!empty($explode_settings[1])){
+								$settings['owl_carousel'][$value] = $explode_settings;
+							}
+						}
+					}
+					drupal_add_js(array('owl_carousel' => array('settings' => array($settings['owl_carousel']))), 'setting');
+				}
+				foreach($content->term as $key => $value){
+					if($fields = field_get_items('taxonomy_term', $content->term, $key, $langcode = NULL)){
+						if(is_array($fields)){
+							foreach($fields as $delta => $value){
+								if(!empty($value['target_id'])){
+									$entity = node_load($value['target_id']);
+									$view_entity = entity_view('node', array($entity), $view_mode = 'teaser', $langcode = NULL, $page = TRUE);
+									$content->taxonomy_term['#markup'] .= '<div class="item">'. render($view_entity) .'</div>';
+								}
+							}
+						}
+					}
+				}
+			}
+		break;
+	}
+}
+
+
+function owl_carousel_taxonomy_block_plugin_settings_alter(&$plugin, &$settings, &$form, $defaults = array()){
+	switch($plugin){
+		case 'owl_carousel':
+			$default_values = array();
+			$element = array();
+			if(!empty($settings)){
+				foreach($settings as $key => $value){
+					$default_values[$key] = $value;
+				}
+			}
+			$element['items'] = array(
+				'#type' => 'textfield',
+				'#title' => t('Number Of Visible Items'),
+				'#default_value' => !empty($default_values['items']) ? $default_values['items'] : '',
+			);
+			$element['navigation'] = array(
+				'#type' => 'select',
+				'#title' => t('Navigation'),
+				'#default_value' => !empty($default_values['navigation']) ? $default_values['navigation'] : array('false'),
+				'#options' => array(
+					'true' => 'On',
+					'false' => 'Off',
+				),
+			);
+			$element['pagination'] = array(
+				'#type' => 'select',
+				'#title' => t('Pagination'),
+				'#default_value' => !empty($default_values['pagination']) ? $default_values['pagination'] : array('false'),
+				'#options' => array(
+					'true' => 'On',
+					'false' => 'Off',
+				),
+			);
+			$element['autoHeight'] = array(
+				'#type' => 'select',
+				'#title' => t('Auto Height'),
+				'#default_value' => !empty($default_values['autoHeight']) ? $default_values['autoHeight'] : array('false'),
+				'#options' => array(
+					'true' => 'On',
+					'false' => 'Off',
+				),
+			);
+			$element['itemsDesktop'] = array(
+				'#type' => 'textfield',
+				'#title' => t('itemsDesktop'),
+				'#default_value' => !empty($default_values['itemsDesktop']) ? $default_values['itemsDesktop'] : '1199, 3',
+			);
+			$element['itemsDesktopSmall'] = array(
+				'#type' => 'textfield',
+				'#title' => t('itemsDesktopSmall'),
+				'#default_value' => !empty($default_values['itemsDesktopSmall']) ? $default_values['itemsDesktopSmall'] : '991, 3',
+			);
+			$element['itemsTablet'] = array(
+				'#type' => 'textfield',
+				'#title' => t('itemsTablet'),
+				'#default_value' => !empty($default_values['itemsTablet']) ? $default_values['itemsTablet'] : '767, 2',
+			);
+			$element['itemsMobile'] = array(
+				'#type' => 'textfield',
+				'#title' => t('itemsMobile'),
+				'#default_value' => !empty($default_values['itemsMobile']) ? $default_values['itemsMobile'] : '567, 1',
+			);
+			$plugin = $element;
+			break;
+	} 
+}
+
+function _owl_carousel_add_dependencies(){
+	drupal_add_js(drupal_get_path('module', 'owl_carousel') . '/owl-carousel/owl_carousel.js', array('type' => 'file', 'weight' => 100, 'scope' => 'header'));
+	drupal_add_css(drupal_get_path('module', 'owl_carousel') . '/owl-carousel/owl.carousel.css', array('type' => 'file', 'weight' => -100, 'scope' => 'header'));
+	drupal_add_css(drupal_get_path('module', 'owl_carousel') . '/owl-carousel/owl.theme.css');
+	drupal_add_css(drupal_get_path('module', 'owl_carousel') . '/owl-carousel/owl.transitions.css');
+	drupal_add_js(drupal_get_path('module', 'owl_carousel') . '/owl-carousel/owl.carousel.min.js', array('type' => 'file', 'weight' => -100, 'scope' => 'header'));
+}

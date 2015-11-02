@@ -1,0 +1,88 @@
+<?php
+
+
+
+
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function fi_taxonomy_block_plugin_displays_info($plugins){
+	$plugins += array(
+		'featured_image' => array(
+			'handler' => 'FiDisplaysHandler',
+			'label' => t('Owl Carousel Featured Image'),
+			'module' => 'fi',
+			'module_title' => 'Featured Image',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'settings' => array(
+				'title' => '',
+				'number_of_items' => 5,
+			),
+		),
+	);
+	return $plugins;
+}
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function fi_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'featured_image' => array(
+			'title' => 'Owl Carousel Featured Image',
+			'handler' => 'FiTermsHandler',
+			'module_title' => 'Featured Image',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'fi',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+
+function fi_add_carousel_dependacies(){
+	drupal_add_js(drupal_get_path('module', 'fi') . '/js/owl_carousel.js', array('type' => 'file', 'weight' => 100, 'scope' => 'header'));
+	drupal_add_css(drupal_get_path('module', 'owl') . '/js/owl.carousel.css', array('type' => 'file', 'weight' => -100, 'scope' => 'header'));
+	drupal_add_css(drupal_get_path('module', 'owl') . '/js/owl.theme.css');
+	drupal_add_css(drupal_get_path('module', 'owl') . '/js/owl.transitions.css');
+	drupal_add_js(drupal_get_path('module', 'owl') . '/js/owl.carousel.min.js', array('type' => 'file', 'weight' => -100, 'scope' => 'header'));
+}
+
+
+
+class BtApi {
+
+	public static function Container($class = array(), $id = null, $weight = 0){
+		return array(
+			'#type' => 'container',
+			'#weight' => $weight,
+			'#attributes' => array(
+				'class' => $class,
+				'id' => $id,
+			),
+		);
+	}
+
+	public static function htmlTag($value, $tag, $class = array(), $weight = 0, $id = null){
+		return array(
+			'#theme' => 'html_tag',
+			'#tag' => $tag,
+			'#value' => t($value),
+			'#weight' => $weight,
+			'#attributes' => array(
+				'class' => $class,
+				'id' => $id,
+			),
+		);
+	}
+	
+}

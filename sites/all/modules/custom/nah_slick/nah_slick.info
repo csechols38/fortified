@@ -1,0 +1,7 @@
+name = Slick
+description = Slick Carousel Block Generator
+core = 7.x
+dependencies[] = slick
+# dependencies[] = entityrefrence
+project = "NAH"
+

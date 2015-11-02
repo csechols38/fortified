@@ -1,0 +1,151 @@
+// CUSTOM PROPERTIES
+
+.clearfix {
+  display: block;
+  zoom: 1;
+
+  &:after {
+    content: " ";
+    display: block;
+    font-size: 0;
+    height: 0;
+    clear: both;
+    visibility: hidden;
+  }
+}
+
+.head-line {
+	border-bottom: 1px solid #ccc;
+	padding-bottom: 20px;
+	position: relative;
+	&:after {
+		content: "";
+		height: 0px;
+		width: 45px;
+		border-top: 2px solid #999;
+		display: block;
+		position: absolute;
+		bottom: -1px;
+	}
+}
+.border-rad {
+	border-radius: 5px;
+}
+
+.color-transition {
+	-webkit-transition: color 0.2s ease-in-out;
+       -moz-transition: color 0.2s ease-in-out;
+         -o-transition: color 0.2s ease-in-out;
+            transition: color 0.2s ease-in-out;
+}
+
+
+// DEFAULT COLORS
+
+@primary-color: #305088;
+@secondary-color: #b41d22;
+@feature-color: #0095b6;
+
+.bg-primary { .bg-gradient (@primary-color,#fff); }
+.bg-secondary { .bg-gradient (@secondary-color,#fff); }
+.bg-feature { .bg-gradient (@feature-color,#fff); }
+.bg-primary-hover { .bg-gradient-hover (@primary-color,#fff); }
+.bg-secondary-hover { .bg-gradient-hover (@secondary-color,#fff); }
+.bg-feature-hover { .bg-gradient-hover (@feature-color,#fff); }
+
+.bg-gradient (@bg-color,@font-color) {
+	background-color: @bg-color;
+	background: -webkit-gradient(linear, left top, left bottom, from(@bg-color), to(darken(@bg-color, 25%)));
+	background: -webkit-linear-gradient(top, @bg-color, darken(@bg-color, 25%));
+	background: linear-gradient(top, @bg-color, darken(@bg-color, 25%));
+	background-size: auto 200%;
+	background-position: 0 0;
+	border-color: darken(@bg-color, 10%);
+	color: @font-color !important;
+}
+.bg-gradient-hover (@bg-color,@font-color) {
+	.bg-gradient (@bg-color,@font-color);
+	transition: background-position 0.2s;
+	&:hover {
+		border-color: darken(@bg-color, 20%);
+		background-position: 0 30%;
+	}
+}
+
+
+// FONTS
+
+.primary-font { font-family: "Helvetica Neue",Helvetica,Arial,sans-serif !important; }
+.alt-font { font-family: "Dosis","Helvetica Neue",Helvetica,Arial,sans-serif !important; }
+
+
+// MEDIA QUERIES
+
+@phone-portrait: ~"screen and (max-width: 567px) and (orientation: portrait)";
+@phone-landscape: ~"screen and (min-width: 568px) and (max-width: 767px)";
+@tablet: ~"screen and (min-width: 768px) and (max-width: 991px)";
+@desktop: ~"screen and (min-width: 992px) and (max-width: 1199px)";
+@large-above: ~"screen and (min-width: 1200px)";
+@large-below: ~"screen and (max-width: 1199px)";
+@medium-above: ~"screen and (min-width: 992px)";
+@medium-below: ~"screen and (max-width: 991px)";
+@small-above: ~"screen and (min-width: 768px)";
+@small-below: ~"screen and (max-width: 767px)";
+@phone-above: ~"screen and (min-width: 568px)";
+@phone-below: ~"screen and (max-width: 567px)";
+
+
+// COLUMNS LAYOUTS
+
+@column-padding: 30px;
+@column-divider: 0px outset #ccc;
+
+.two-column {
+	width: 100%;
+	float: left;
+
+	@media @small-above {
+		@num-of-cols: 2;
+	
+		-webkit-column-count: @num-of-cols; /* Chrome, Safari, Opera */
+		-moz-column-count: @num-of-cols; /* Firefox */
+		column-count: @num-of-cols;
+		-webkit-column-gap: @column-padding; /* Chrome, Safari, Opera */
+		-moz-column-gap: @column-padding; /* Firefox */
+		column-gap: @column-padding;
+		-webkit-column-rule: @column-divider; /* Chrome, Safari, Opera */
+		-moz-column-rule: @column-divider; /* Firefox */
+		column-rule: @column-divider;
+	}
+	
+	@media @small-below {
+		@num-of-cols: 1;
+		
+		-webkit-column-count: @num-of-cols; /* Chrome, Safari, Opera */
+		-moz-column-count: @num-of-cols; /* Firefox */
+		column-count: @num-of-cols;
+		-webkit-column-gap: @column-padding; /* Chrome, Safari, Opera */
+		-moz-column-gap: @column-padding; /* Firefox */
+		column-gap: @column-padding;
+		-webkit-column-rule: @column-divider; /* Chrome, Safari, Opera */
+		-moz-column-rule: @column-divider; /* Firefox */
+		column-rule: @column-divider;
+	}
+}
+
+.three-column {
+	@num-of-cols: 3;
+
+	-webkit-column-count: @num-of-cols; /* Chrome, Safari, Opera */
+	-moz-column-count: @num-of-cols; /* Firefox */
+	column-count: @num-of-cols;
+	-webkit-column-gap: @column-padding; /* Chrome, Safari, Opera */
+	-moz-column-gap: @column-padding; /* Firefox */
+	column-gap: @column-padding;
+	-webkit-column-rule: @column-divider; /* Chrome, Safari, Opera */
+	-moz-column-rule: @column-divider; /* Firefox */
+	column-rule: @column-divider;
+	
+	width: 100%;
+	float: left;
+}

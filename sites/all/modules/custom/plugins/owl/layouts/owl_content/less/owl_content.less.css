@@ -1,0 +1,85 @@
+.owl-container {
+	padding-bottom:15px;
+	text-align: center;
+}
+
+.owl-plugin-carousel {
+	padding-top:30px;
+	padding-bottom:30px;
+	text-align: center;
+}
+
+.lpt-media-object{
+	padding-top:15px;
+}
+
+.owl-name{
+	position: relative;
+	max-height: 45px;
+	padding: 13px 0;
+	font-size: 12px;
+	background: rgba(0,97,168,0.9);
+	color: #fff;
+	font-weight: bold;
+	margin-right: -10px;
+	margin-left: 10px;
+}
+
+.owl-img-container{
+	width:250px;
+	margin:auto;
+}
+
+.owl-name a {
+	color: #fff;
+}
+
+.owl-name a:hover {
+	text-decoration: underline;
+	color: #fff;
+}
+
+.owl-img {
+	padding:0px 10px 0px 10px;
+	margin-bottom: -42px;
+}
+
+.box-icon{
+	text-align: center;
+	border-radius: 50% 50% 50% 50%;
+	width: 66px;
+	height: 66px;
+	font-size: 28px;
+	line-height: 66px;
+	border: 2px solid;
+	border: 2px solid #333333;
+	color: #333333;
+	margin: 0 auto;
+}
+
+.box-title{
+	text-align: center;
+	margin: 20px 0px 15px !important;
+	letter-spacing: -0.5px;
+	font-size: 16px;
+	line-height: 24px;
+	margin: 0 0 15px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.box-content {
+	box-sizing: border-box;
+	padding: 0;
+	margin: 10px 0px;
+}
+
+.owl-link{
+	
+}
+
+.box-icon:hover{
+	background-color:#43b4f9;
+	border-color:#43b4f9;
+	color:#fff;
+}

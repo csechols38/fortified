@@ -1,0 +1,47 @@
+<?php
+
+
+/**
+ * implements hook_taxonomy_block_plugin_displays_info
+ */
+function lists_taxonomy_block_plugin_terms_info($plugins){
+	$plugins += array(
+		'lists' => array(
+			'handler' => 'ListsTermsHandler',
+			'label' => t('Lists'),
+			'module' => 'lists',
+			'module_title' => 'Lists',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function lists_taxonomy_block_plugin_vocabularys_info($plugins){
+	$plugins += array(
+		'lists' => array(
+			'title' => 'Lists',
+			'handler' => 'ListsVocabsHandler',
+			'file' => array(
+				'path' => '/handlers/handler',
+				'suffix' => 'php',
+			),
+			'module' => 'lists',
+			'module_title' => 'Lists',
+			'settings' => array(),
+		),
+	);
+	return $plugins;
+}
+
+
+
+

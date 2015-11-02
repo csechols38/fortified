@@ -1,0 +1,164 @@
+<?php
+
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function tb_custom_taxonomy_block_plugin_terms_info($plugins){
+	$plugs = array(
+		'custom' => 'Custom',
+		'default' => 'Default',
+	);
+	foreach($plugs as $plugin_name => $title){
+		$plugins += array(
+			$plugin_name => array(
+				'title' => $title,
+				'handler' => 'TbCustomTermsHandler',
+				'module_title' => 'BT Taxonomy Block',
+				'file' => array(
+					'path' => '/handlers/handler',
+					'suffix' => 'php',
+				),
+				'module' => 'tb_custom',
+				'settings' => array(),
+			),
+		);
+	}
+	return $plugins;
+}
+
+/**
+ * implements hook_taxonomy_block_plugin_terms_info
+ */
+function tb_custom_taxonomy_block_plugin_vocabularys_info($plugins){
+	$plugs = array(
+		'custom' => 'Custom',
+		'default' => 'Default',
+	);
+	foreach($plugs as $plugin_name => $title){
+		$plugins += array(
+			$plugin_name => array(
+				'title' => $title,
+				'handler' => 'TbCustomVocabsHandler',
+				'module_title' => 'BT Taxonomy Block',
+				'load_term_plugins' => TRUE,
+				'file' => array(
+					'path' => '/handlers/handler',
+					'suffix' => 'php',
+				),
+				'module' => 'tb_custom',
+				'settings' => array(),
+			),
+		);
+	}
+	return $plugins;
+}
+
+
+/**
+ * Implements hook_token_info().
+ */
+function tb_custom_token_info() {
+	$info['types']['taxonomy_term'] = array(
+		'name' => t('Taxonomy term fields'),
+		'description' => t('Tokens containing taxonomy field values.'),
+	);
+	$info['tokens']['taxonomy_term'] = array(
+		'name' => t('taxonomy_term:name'),
+		'description' => t('The value from the name field'),
+		'needs-data' => 'taxonomy_term',
+	);
+	return $info;
+}
+
+
+/**
+ * Implements hook_tokens().
+ */
+function tb_custom_tokens($type, $tokens, array $data = array(), array $options = array()) {
+	$replacements = array();
+	if ($type == 'term') {
+		if(!empty($data)){
+			foreach ($tokens as $name => $original) {
+				if(array_key_exists($name, $data)){
+					if(!empty($data[$name]['field_type'])){
+						switch($data[$name]['field_type']){
+						case 'image':
+						case 'link_image':
+							foreach($data[$name]['und'] as $delta => $value){
+								$image = array(
+									'path' => file_create_url($value['uri']),
+									'attributes' => array(
+										'alt' => !empty($value['alt']) ? $value['alt'] : '',
+										'title' => !empty($value['title']) ? $value['title'] : '',
+										'class' => !empty($value['class']) ? $value['class'] : array(''),
+										'rel' => !empty($value['rel']) ? $value['rel'] : '',
+									),
+								);
+								$data[$name] = theme('image', $image);
+							}
+							break;
+						default:
+							if(is_array($data[$name])){
+								$data[$name] = _bt_taxonomy_block_raw_token_value($data[$name]['und']);
+							}
+							break;
+						}
+					}
+					$value = is_array($data[$name]) ? render($data[$name]) : $data[$name];
+					$replacements[$original] = $value;
+				}
+			}
+		}
+	}
+	return $replacements;
+}
+
+
+function tb_custom_raw_token_value($values){
+	$content = '';
+	foreach($values as $delta => $value){
+		if(!empty($value['value'])){
+			$content .= $value['value'];
+		}
+	}
+	return $content;
+}
+
+
+
+/**
+ * Implements hook_field_formatter_view
+ *
+ * @parameter $items
+ */
+function tb_custom_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, &$items, $display){
+	switch($display['type']){
+	case 'tb_custom':
+		if(!empty($items)){
+			$content = array();
+			foreach($items as $delta => $value){
+				$taxonomy_block = new BTaxonomyBlock($value['tid']);
+				$taxonomy_block->buildDisplay();
+				$content[$delta] = $taxonomy_block->renderTaxonomyBLock();
+			}
+			$items = $content;
+		}
+		break;
+	}
+	return $items;
+}
+
+/**
+ * Implements hook_field_formatter_info
+ *
+ * @parameter unkown
+ */
+function tb_custom_field_formatter_info() {
+	return array(
+		'tb_custom' => array(
+			'label' => t('Taxonomy Block Display'),
+			'field types' => array('taxonomy_term_reference'),
+		),
+	);
+}

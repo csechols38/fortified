@@ -1,0 +1,4 @@
+name = Blazar
+description = Its Blazar!
+core = 7.x
+package = Blazar

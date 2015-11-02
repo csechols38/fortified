@@ -1,0 +1,4 @@
+name = Lists Plugin
+description = Creates different types of lists.
+core = 7.x
+package = Taxonomy Block Plugins

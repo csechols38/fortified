@@ -1,0 +1,94 @@
+
+
+.mot-list-name{
+	color: #4582ec !important;
+	line-height: 1.2;
+	margin-top: 30px;
+	text-transform: uppercase;
+}
+
+.mot-list-desc{
+	margin-bottom: 20px;
+	font-size: 18px;
+	color: #999999;
+	line-height: 1.5;
+	padding: 20px 0px 20px 0px;
+}
+
+.mot-list-item{
+	margin-bottom: 30px;
+	.mot-list-header{
+		border-bottom: 1px dotted #d0d0d0;
+	}
+	.media-body{
+		margin-left:50px;
+  	h3{
+  		color: #FD7800;
+  		font-size: 25px;
+  	}
+  	.list-c{
+  		.mot-l-title{
+  			text-align: left !important;
+  		}
+  		.btn-group{
+	  		margin-left: 50px;
+	  		float: left;
+	  		margin-top: 10px;
+  		}
+  		.mot-list{
+  			color: #999999;
+  			font-size: 17px !important;
+  			margin-top: 20px;
+  			list-style: disc;
+  			li{
+  				text-align: left;
+  				background: transparent url(/sites/all/themes/bootstrap/images/tick-grey.png) no-repeat scroll 0 3px;
+  				list-style-image: none;
+  				list-style-position: outside;
+  				list-style-type: none;
+  				margin-bottom: 2px !important;
+  				padding-bottom: 2px !important;
+  				padding-left: 25px !important;
+  				margin-left: 0;
+  			}
+  		}
+  	}
+  }
+}
+
+.list-c.left{
+	margin-left: 100px;
+	.mot-list{
+		margin:5px 0 5px 10px;
+	}
+}
+
+.list-c.right{
+	.mot-list{
+		margin:5px 0 5px 10px;
+	}
+}
+
+
+@media (max-width: 767px) {
+	.mot-list-item{
+		.mot-image{
+			display: none;
+		}
+		.media-body{
+			margin-left: 5px;
+			.list-c.left{
+				margin-left: 0px;
+				.mot-list{
+					margin:5px 0 5px 10px;
+				}
+			}
+			.list-c.right{
+				.mot-list{
+					margin:5px 0 5px 10px;
+				}
+			}
+		}
+	}
+}
+

@@ -1,0 +1,603 @@
+<?php
+
+
+
+function ipdatatel_menu(){
+	$items['admin/config/system/ipdatatel'] = array(
+		'title' => 'Ipdatatel',
+		'description' => 'Configure Ipdatatel',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('ipdatatel_settings_form'),
+		'access arguments' => array('access ipdatatel'),
+		'type' => MENU_NORMAL_ITEM,
+		'file' => 'ipdatatel.admin.inc',
+	);
+	
+	$items['ipdatatel/add'] = array(
+    'title' => 'Add Ipdatatel Component',
+    'page callback' => 'ipdatatel_admin_add_page',
+    'access arguments' => array('administer ipdatatel entities'),
+    'file' => 'ipdatatel.admin.inc',
+    'type' => MENU_LOCAL_ACTION,
+    'tab_parent' => 'task',
+    'tab_root' => 'task',
+  );
+
+  $task_uri = 'entity/%ipdatatel';
+  $task_uri_argument_position = 1;
+
+  $items[$task_uri] = array(
+    'title callback' => 'entity_label',
+    'title arguments' => array('ipdatatel', $task_uri_argument_position),
+    'page callback' => 'ipdatatel_view',
+    'page arguments' => array($task_uri_argument_position),
+    'access callback' => 'entity_access',
+    'access arguments' => array('view', 'ipdatatel', $task_uri_argument_position),
+    'file' => 'ipdatatel.pages.inc',
+  );
+
+  $items[$task_uri . '/view'] = array(
+    'title' => 'View',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items[$task_uri . '/delete'] = array(
+    'title' => 'Delete task',
+    'title callback' => 'ipdatatel_label',
+    'title arguments' => array($task_uri_argument_position),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ipdatatel_delete_form', $task_uri_argument_position),
+    'access callback' => 'entity_access',
+    'access arguments' => array('edit', 'ipdatatel', $task_uri_argument_position),
+    'file' => 'ipdatatel.admin.inc',
+  );
+
+  $items[$task_uri . '/edit'] = array(
+    'title' => 'Edit',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ipdatatel_form', $task_uri_argument_position),
+    'access callback' => 'entity_access',
+    'access arguments' => array('edit', 'ipdatatel', $task_uri_argument_position),
+    'file' => 'ipdatatel.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
+  );
+  foreach (ipdatatel_entity_type() as $type => $info) {
+    $items['entity/add/' . $type] = array(
+      'title' => 'Add task',
+      'page callback' => 'ipdatatel_add',
+      'page arguments' => array(2),
+      'access callback' => 'entity_access',
+      'access arguments' => array('create', 'ipdatatel', $type),
+      'type' => MENU_LOCAL_ACTION,
+    );
+  }
+
+  $items['admin/structure/ipdatatel/%ipdatatel_entity_type/delete'] = array(
+    'title' => 'Delete',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ipdatatel_entity_type_form_delete_confirm', 4),
+    'access arguments' => array('administer ipdatatel types'),
+    'weight' => 1,
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'ipdatatel.admin.inc',
+  );
+	return $items;
+}
+
+
+trait IpdatatelConnector {
+
+	public function sendData($data = array()){
+		$data = !empty($data) ? $data : $this->data;
+		$this->http = array(
+			'method' => 'POST',
+			'max_redirects' => 0,
+			'headers' => array('Content-Type' => 'application/json', 'Accept' => 'application/json'),
+			'data' => drupal_json_encode($data),
+		);
+		$this->response = drupal_http_request($this->api_url, $this->http);
+		dpm($this->response);
+		$this->response_data = json_decode($this->fixResponseData($this->response->data));
+		dpm($this->response_data);
+		return $this->response_data;
+	}
+	
+	// fix for ipdatatels api.
+	// since they are stupid and wont fix it
+	private function fixResponseData($data){
+		$response = explode("\n", $data);
+		foreach($response as $delta => $sub){
+			if(!empty($sub)){
+				$data = $sub;
+				break;
+			}
+		}
+		return $data;
+	}
+	
+}
+
+trait IpdatatelCustomer {
+
+	public function addCustomer($values, $parent_id = null){
+		$this->data['data'] = array(
+			'newuser' => $values['name'],
+			'newpass' => $values['pass'],
+			'email' => $values['mail'],
+		);
+		if($parent_id){
+			$this->data['data']['parent_id'] = $parent_id;
+		}
+		return $this;
+	}
+
+	public function editCustomer($values, $user_id){
+		global $user;
+		$this->data['data'] = array(
+			'user_id' => $user_id,
+		);
+		foreach($values as $key => $value){
+			if(!empty($value['und'][0]['value'])){
+				$this->data['data'] += array(str_replace('field_', '', $key) => $value['und'][0]['value']);
+			}
+		}
+		return $this;
+	}
+	
+	public function loadCustomer($user_id = null){
+		global $user;
+		if(!$user_id){
+			$this->data['data'] = array(
+				'user' => $user->name,
+			);
+		} else {
+			$this->data['data'] = array(
+				'user_id' => $user_id,
+			);
+		}
+		return $this;
+	}
+	
+}
+
+
+class Ipdatatel {
+
+	use IpdatatelConnector, IpdatatelCustomer;
+
+	public $response;
+	public $response_data;
+	public $data = array();
+
+
+	public function __construct($utility){
+		$this->utility = $utility;
+		$this->api_url = variable_get('ipdatatel_api_url');
+		$this->dealer_id = variable_get('ipdatatel_dealer_id');
+		$this->dealer_pass = variable_get('ipdatatel_dealer_pass');
+		// build the data array
+		$this->build();
+	}
+
+
+	public function build(){
+		$this->data = array(
+			'id' => $this->dealer_id,
+			'pass' => $this->dealer_pass,
+			'utility' => $this->utility,
+			'data' => array(),
+		);
+		return $this;
+	}
+	
+}
+
+
+trait IpdatatelEntityCustomerController {
+
+	public function initCustomer($uid, $fields){
+		$entity = entity_create('ipdatatel_accounts', array('account_id' => $uid));
+		foreach($fields as $field_name => $field_value){
+			$entity->{$field_name} = $field_value;
+		}
+	  $entity->save();
+	}
+	
+}
+
+
+
+
+/**
+ * Implements hook_entity_info().
+ */
+function ipdatatel_entity_info() {
+
+  $return = array(
+    'ipdatatel' => array(
+      'label' => t('Ipdatatel'),
+      'entity class' => 'DataTel',
+      'controller class' => 'DataTelController',
+      'base table' => 'ipdatatel',
+      'fieldable' => TRUE,
+      'entity keys' => array(
+        'id' => 'account_id',
+        'bundle' => 'type',
+      ),
+      'bundle keys' => array(
+        'bundle' => 'type',
+      ),
+      'bundles' => array(),
+      'load hook' => 'ipdatatel_load',
+      'view modes' => array(
+        'full' => array(
+          'label' => t('Default'),
+          'custom settings' => FALSE,
+        ),
+      ),
+      'label callback' => 'entity_class_label',
+      'uri callback' => 'entity_class_uri',
+      'module' => 'ipdatatel',
+      'access callback' => 'ipdatatel_access',
+    ),
+  );
+  $return['ipdatatel_entity_type'] = array(
+    'label' => t('Ipdatatel Entity'),
+    'entity class' => 'IpdatatelEntity',
+    'controller class' => 'IpdatatelEntityController',
+    'base table' => 'ipdatatel_entity_type',
+    'fieldable' => FALSE,
+    'bundle of' => 'ipdatatel',
+    'exportable' => TRUE,
+    'entity keys' => array(
+      'id' => 'id',
+      'name' => 'type',
+      'label' => 'label',
+    ),
+    'module' => 'ipdatatel',
+    // Enable the entity API's admin UI.
+    'admin ui' => array(
+      'path' => 'admin/structure/ipdatatel',
+      'file' => 'ipdatatel.admin.inc',
+      'controller class' => 'IpdatatelEntityUIController',
+    ),
+    'access callback' => 'ipdatatel_entity_type_access',
+  );
+
+  return $return;
+}
+
+
+
+
+/**
+ * Implements hook_entity_info_alter().
+ */
+function ipdatatel_entity_info_alter(&$entity_info) {
+	  foreach (ipdatatel_entity_type() as $type => $info) {
+    $entity_info['ipdatatel']['bundles'][$type] = array(
+      'label' => $info->label,
+      'admin' => array(
+        'path' => 'admin/structure/ipdatatel/manage/%ipdatatel_entity_type',
+        'real path' => 'admin/structure/ipdatatel/manage/' . $type,
+        'bundle argument' => 4,
+      ),
+    );
+  }
+}
+
+
+
+
+/**
+ * Implements hook_permission().
+ */
+function ipdatatel_permission() {
+  $permissions = array(
+    'administer ipdatatel_entity types' => array(
+      'title' => t('Administer ipdatatel types'),
+      'description' => t('Allows users to configure task types and their fields.'),
+      'restrict access' => TRUE,
+    ),
+    'create ipdatatel entities' => array(
+      'title' => t('Create tasks'),
+      'description' => t('Allows users to create tasks.'),
+      'restrict access' => TRUE,
+    ),
+    'view ipdatatel entities' => array(
+      'title' => t('View tasks'),
+      'description' => t('Allows users to view tasks.'),
+      'restrict access' => TRUE,
+    ),
+    'edit any ipdatatel entities' => array(
+      'title' => t('Edit any tasks'),
+      'description' => t('Allows users to edit any tasks.'),
+      'restrict access' => TRUE,
+    ),
+    'edit own ipdatatel entities' => array(
+      'title' => t('Edit own tasks'),
+      'description' => t('Allows users to edit own tasks.'),
+      'restrict access' => TRUE,
+    ),
+  );
+
+  return $permissions;
+}
+
+
+
+/**
+ * Implements hook_entity_property_info_alter().
+ */
+function ipdatatel_entity_property_info_alter(&$info) {
+  $properties = &$info['ipdatatel']['properties'];
+  $properties['created'] = array(
+    'label' => t("Date created"),
+    'type' => 'date',
+    'description' => t("The date the node was posted."),
+    'setter callback' => 'entity_property_verbatim_set',
+    'setter permission' => 'administer nodes',
+    'schema field' => 'created',
+  );
+  $properties['changed'] = array(
+    'label' => t("Date changed"),
+    'type' => 'date',
+    'schema field' => 'changed',
+    'description' => t("The date the node was most recently updated."),
+  );
+  $properties['uid'] = array(
+    'label' => t("Author"),
+    'type' => 'user',
+    'description' => t("The author of the task."),
+    'setter callback' => 'entity_property_verbatim_set',
+    'setter permission' => 'administer ipdatatel entities',
+    'required' => TRUE,
+    'schema field' => 'uid',
+  );
+}
+
+
+
+/*******************************************************************************
+ ********************************* Task API's **********************************
+ ******************************************************************************/
+
+/**
+ * Access callback for task.
+ */
+function ipdatatel_access($op, $task, $account = NULL, $entity_type = NULL) {
+  global $user;
+
+  if (!isset($account)) {
+    $account = $user;
+  }
+  switch ($op) {
+    case 'create':
+      return user_access('administer ipdatatel entities', $account)
+          || user_access('create ipdatatel entities', $account);
+    case 'view':
+      return user_access('administer ipdatatel entities', $account)
+          || user_access('view ipdatatel entities', $account);
+    case 'edit':
+      return user_access('administer ipdatatel entities')
+          || user_access('edit any ipdatatel entities')
+          || (user_access('edit own ipdatatel entities') && ($task->uid == $account->uid));
+  }
+}
+
+
+
+/**
+ * Load a task.
+ */
+function ipdatatel_load($tkid, $reset = FALSE) {
+  $tasks = ipdatatel_load_multiple(array($tkid), array(), $reset);
+  return reset($tasks);
+}
+
+/**
+ * Load multiple tasks based on certain conditions.
+ */
+function ipdatatel_load_multiple($tkids = array(), $conditions = array(), $reset = FALSE) {
+  return entity_load('ipdatatel', $tkids, $conditions, $reset);
+}
+
+/**
+ * Save task.
+ */
+function ipdatatel_save($task) {
+  entity_save('ipdatatel', $task);
+}
+
+/**
+ * Delete single task.
+ */
+function ipdatatel_delete($task) {
+  entity_delete('ipdatatel', entity_id('ipdatatel' ,$task));
+}
+
+/**
+ * Delete multiple tasks.
+ */
+function ipdatatel_delete_multiple($task_ids) {
+  entity_delete_multiple('ipdatatel', $task_ids);
+}
+
+
+/*******************************************************************************
+ ****************************** Task Type API's ********************************
+ ******************************************************************************/
+
+/**
+ * Access callback for task Type.
+ */
+function ipdatatel_entity_type_access($op, $entity = NULL) {
+  return user_access('administer ipdatatel_entity types');
+}
+
+/**
+ * Load task Type.
+ */
+function ipdatatel_entity_type_load($task_type) {
+  return ipdatatel_entity_type($task_type);
+}
+
+/**
+ * List of task Types.
+ */
+function ipdatatel_entity_type($type_name = NULL) {
+  $types = entity_load_multiple_by_name('ipdatatel_entity_type', isset($type_name) ? array($type_name) : FALSE);
+  return isset($type_name) ? reset($types) : $types;
+}
+
+/**
+ * Save task type entity.
+ */
+function ipdatatel_entity_type_save($task_type) {
+  entity_save('ipdatatel_entity_type', $task_type);
+}
+
+/**
+ * Delete single case type.
+ */
+function ipdatatel_entity_type_delete($task_type) {
+  entity_delete('ipdatatel_entity_type', entity_id('ipdatatel_entity_type' ,$task_type));
+}
+
+/**
+ * Delete multiple case types.
+ */
+function ipdatatel_entity_type_delete_multiple($task_type_ids) {
+  entity_delete_multiple('ipdatatel_entity_type', $task_type_ids);
+}
+
+
+/**
+ * Ipdatatel Form.
+ */
+function ipdatatel_form($form, &$form_state, $task) {
+  $form_state['task'] = $task;
+  
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    '#title' => t('Name'),
+    '#default_value' => $task->title,
+  );
+
+  $form['description'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Description'),
+    '#default_value' => $task->description,
+  );
+
+  $form['uid'] = array(
+    '#type' => 'value',
+    '#value' => $task->uid,
+  );
+
+  field_attach_form('ipdatatel', $task, $form, $form_state);
+
+  $submit = array();
+  if (!empty($form['#submit'])) {
+    $submit += $form['#submit'];
+  }
+
+  $form['actions'] = array(
+    '#weight' => 100,
+  );
+
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save Entity'),
+    '#submit' => $submit + array('ipdatatel_form_submit'),
+  );
+  // Show Delete button if we edit task.
+  $task_id = entity_id('ipdatatel' ,$task);
+  if (!empty($task_id) && ipdatatel_access('edit', $task)) {
+    $form['actions']['delete'] = array(
+      '#type' => 'submit',
+      '#value' => t('Delete'),
+      '#submit' => array('ipdatatel_form_submit_delete'),
+    );
+  }
+
+  $form['#validate'][] = 'ipdatatel_form_validate';
+
+  return $form;
+}
+
+function ipdatatel_form_validate($form, &$form_state) {
+
+}
+
+
+/**
+ * Add new task page callback.
+ */
+function ipdatatel_add($type) {
+  $task_type = ipdatatel_entity_type($type);
+
+  $task = entity_create('ipdatatel', array('type' => $type));
+  drupal_set_title(t('Create @name', array('@name' => entity_label('ipdatatel', $task_type))));
+
+  $output = drupal_get_form('ipdatatel_form', $task);
+
+  return $output;
+}
+
+
+/**
+ * Task submit handler.
+ */
+function ipdatatel_form_submit($form, &$form_state) {
+  $task = $form_state['task'];
+
+  entity_form_submit_build_entity('ipdatatel', $task, $form, $form_state);
+
+  ipdatatel_save($task);
+
+  $task_uri = entity_uri('ipdatatel', $task);
+
+  $form_state['redirect'] = $task_uri['path'];
+
+  drupal_set_message(t('Task %title saved.', array('%title' => entity_label('ipdatatel', $task))));
+}
+
+
+function ipdatatel_form_submit_delete($form, &$form_state) {
+  $task = $form_state['task'];
+  $task_uri = entity_uri('ipdatatel', $task);
+  $form_state['redirect'] = $task_uri['path'] . '/delete';
+}
+
+
+
+/**
+  * Implements hook_views_api().
+  */
+function ipdatatel_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'ipdatatel'),
+  );
+}
+
+
+/*
+function ipdatatel_enable(){
+	 module_load_include('inc', 'ipdatatel', 'includes/ipdatatel.fields');
+	 $customer_textfields = ipdatatel_customer_field_list();
+	 	foreach($customer_textfields as $field_name => $values){
+		if(!field_info_instance('ipdatatel', 'field_'. $field_name, 'customer')){
+			$b_instance = field_info_instance('node', 'field_'. $field_name, 'customer');
+			if($b_instance){
+				$b_instance['entity_type'] = 'ipdatatel';
+				field_create_instance($b_instance);
+			}
+		}
+	}
+}
+*/

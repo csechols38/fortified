@@ -1,0 +1,4 @@
+name = Bootstrap Tabs
+description = Bootstrap Tabs Plugin
+core = 7.x
+package = Taxonomy Block Plugins

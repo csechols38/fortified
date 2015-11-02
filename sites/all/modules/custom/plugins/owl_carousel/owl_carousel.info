@@ -1,0 +1,5 @@
+name = Owl Carousel
+description = Simple Owl Carousel Module
+package = BlueTree
+core = 7.x 
+files[] = owl_carousel.module

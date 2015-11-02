@@ -1,0 +1,313 @@
+<?php
+
+trait APIMisc {
+
+	public function getImageUrl($uri){
+		return $url = file_create_url($uri);
+	}
+	
+}
+
+class APITools {
+
+	protected function buildImage($url, $class = "", $weight = 0){
+		return array(
+			'#type' => 'markup',
+			'#markup' => '<img src="'. $url .'">',
+			'#weight' => $weight,
+			'#prefix' => '<div class="'. $class .'">',
+			'#suffix' => '</div>',
+		);
+	}
+
+	protected function linkImage($text, $path, $class = array(), $weight = 0){
+		return array(
+			'#theme' => 'link',
+			'#text' => $text,
+			'#path' => $path,
+			'#weight' => $weight,
+			'#options' => array(
+				'attributes' => array(
+					'class' => $class,
+					'target' => '_blank',
+				),
+				'html' => TRUE,
+				'external' => TRUE,
+			),
+		);
+	}
+
+	protected function htmlTag($value, $tag, $class = array(), $weight = 0){
+		return array(
+			'#type' => 'html_tag',
+			'#value' => $value,
+			'#tag' => $tag,
+			'#weight' => $weight,
+			'#attributes' => array(
+				'class' => $class,
+			),
+		);
+	}
+
+	protected function label($label, $class = array(), $weight = 0){
+		return array(
+			'#type' => 'html_tag',
+			'#value' => $label,
+			'#tag' => 'label',
+			'#weight' => $weight,
+			'#attributes' => array(
+				'class' => $class,
+			),
+		);
+	}
+
+	protected function itemList($items, $class = array(), $weight = 0){
+		return array(
+			'#theme' => 'item_list',
+			'#items' => $items,
+			'#weight' => $weight,
+			'#attributes' => array(
+				'class' => $class,
+			),
+		);
+	}
+
+	protected function Container($class = array(), $id = null, $weight = 0){
+		return array(
+			'#type' => 'container',
+			'#weight' => $weight,
+			'#attributes' => array(
+				'class' => $class,
+				'id' => $id,
+			),
+		);
+	}
+}
+
+abstract class APICont {
+	public function __construct(){
+		$this->item = array(
+			'#attributes' => array(
+				'class' => array(),
+			),
+		);	
+	}
+}
+
+
+class APIContent extends APICont{
+	
+	
+	public function __construct(){
+		parent::__construct();
+	}
+	
+	public function type($type = ''){
+		$this->item['#type'] = $type;
+		return $this;
+	}
+	
+	public function weight($weight = ''){
+		$this->item['#weight'] = $weight;
+		return $this;
+	}
+	
+	public function _class($attributes = array()){
+		$attributes = array($attributes);
+		$this->item['#attributes']['class'] = $attributes;
+		return $this;
+	}
+	
+	public function style($style = array()){
+		$this->item['#attributes']['style'] = $style;
+		return $this;
+	}
+	
+	public function id($id = ''){
+		$this->item['#attributes']['id'] = $id;
+		return $this;
+	}
+	
+	public function tag($tag = ''){
+		$this->item['#tag'] = $tag;
+		return $this;
+	}
+	
+	public function value($value = ''){
+		$this->item['#value'] = $value;
+		return $this;
+	}
+	
+	public function markup($markup = ''){
+		$this->item['#markup'] = $markup;
+		return $this;
+	}
+	
+	public function theme($theme = ''){
+		$this->item['#theme'] = $theme;
+		return $this;
+	}
+	
+	public function path($path = ''){
+		$this->item['#path'] = $path;
+		return $this;
+	}
+	
+	public function text($text = ''){
+		$this->item['#text'] = $text;
+		return $this;
+	}
+	
+	public function items($items = ''){
+		$this->item['#items'] = $items;
+		return $this;
+	}
+	
+	public function prefix($prefix = ''){
+		$this->item['#prefix'] = $prefix;
+		return $this;
+	}
+	
+	public function suffix($suffix = ''){
+		$this->item['#suffix'] = $suffix;
+		return $this;
+	}
+	
+	public function attr($name, $attribute = ''){
+		$this->item['#attributes'][$name] = $attribute;
+		return $this;
+	}
+	
+	public function _options($html = false, $class = array(), $id = ''){
+		$this->item['#options'] = array(
+			'html' => $html,
+			'attributes' => array(
+				'class' => array($class),
+				'id' => $id,
+			),
+		);
+		return $this;
+	}
+	
+	public function r(){
+		$item = $this->item;
+		$this->item = parent::__construct();
+		return $item;
+	}
+}
+
+
+
+
+
+
+
+
+trait RenderApi {
+	
+	
+	public function __construct(){
+		$this->item = array(
+			'#attributes' => array(
+				'class' => array(),
+			),
+		);	
+	}
+	
+	public function type($type = ''){
+		$this->item['#type'] = $type;
+		return $this;
+	}
+	
+	public function weight($weight = ''){
+		$this->item['#weight'] = $weight;
+		return $this;
+	}
+	
+	public function _class($attributes = array()){
+		$attributes = array($attributes);
+		$this->item['#attributes']['class'] = $attributes;
+		return $this;
+	}
+	
+	public function style($style = array()){
+		$this->item['#attributes']['style'] = $style;
+		return $this;
+	}
+	
+	public function id($id = ''){
+		$this->item['#attributes']['id'] = $id;
+		return $this;
+	}
+	
+	public function tag($tag = ''){
+		$this->item['#tag'] = $tag;
+		return $this;
+	}
+	
+	public function value($value = ''){
+		$this->item['#value'] = $value;
+		return $this;
+	}
+	
+	public function markup($markup = ''){
+		$this->item['#markup'] = $markup;
+		return $this;
+	}
+	
+	public function theme($theme = ''){
+		$this->item['#theme'] = $theme;
+		return $this;
+	}
+	
+	public function path($path = ''){
+		$this->item['#path'] = $path;
+		return $this;
+	}
+	
+	public function text($text = ''){
+		$this->item['#text'] = $text;
+		return $this;
+	}
+	
+	public function items($items = ''){
+		$this->item['#items'] = $items;
+		return $this;
+	}
+	
+	public function prefix($prefix = ''){
+		$this->item['#prefix'] = $prefix;
+		return $this;
+	}
+	
+	public function suffix($suffix = ''){
+		$this->item['#suffix'] = $suffix;
+		return $this;
+	}
+	
+	public function attr($name, $attribute = ''){
+		$this->item['#attributes'][$name] = $attribute;
+		return $this;
+	}
+	
+	public function _options($html = false, $class = array(), $id = ''){
+		$this->item['#options'] = array(
+			'html' => $html,
+			'attributes' => array(
+				'class' => array($class),
+				'id' => $id,
+			),
+		);
+		return $this;
+	}
+	
+	public function r(){
+		$item = $this->item;
+		$this->item = array(
+			'#attributes' => array(
+				'class' => array(),
+			),
+		);	
+		return $item;
+	}
+}

@@ -1,0 +1,26 @@
+<?php
+
+
+
+function alarm_form_alter(&$form, &$form_state, $form_id){
+	if($form_id == 'alarm_node_form'){
+		$form['title']['#title'] = t("Customer Account Name");
+		$form['#submit'][] = '_alarm_cust_init_submit';
+	}
+}
+
+
+function _alarm_cust_init_submit($form, &$form_state){
+	if(empty($form_state['values']['field_alarm_verification_id']['und'][0]['value'])){
+		$form_state['values']['field_alarm_verification_id']['und'][0]['value'] = alarm_verification_code();
+	}
+}
+
+function alarm_verification_code(){
+	$var_id = '';
+	for($i = 0; $i <= 6; $i++){
+		$var_id .= rand($i, ($i + 3));	
+	}
+	return md5($var_id);
+}
+
