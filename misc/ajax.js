@@ -247,7 +247,7 @@ Drupal.ajax.prototype.eventResponse = function (element, event) {
         // equivalent.
         element.form.clk = element;
       }
-
+      console.log(element);
       ajax.form.ajaxSubmit(ajax.options);
     }
     else {

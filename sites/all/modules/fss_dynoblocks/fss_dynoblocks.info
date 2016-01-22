@@ -1,0 +1,5 @@
+name = Fortified Dynamic Blocks
+description = "Custom DynoBlocks"
+package = Webmember
+core = 7.x
+version = 7.0

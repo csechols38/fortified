@@ -1,0 +1,93 @@
+.dynoblock-region.active {
+  border: 3px dashed #ccc;
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 0x 10px !important;
+  .dynoblock{
+    border-radius: 5px;
+    margin: 20px 10px;
+    padding-bottom:10px;
+    border-bottom: 1px dotted #ccc;
+    .dynoblock-content{
+      margin-left: 20px;
+    }
+  }
+  .dynoblock.active{
+   // border-top: 1px solid #d0d0d0;
+  }
+  .dyno-add-block{
+    padding: 10px 10px;
+  }
+  .dyno-drag-element {
+    position: absolute;
+    //top: 30%;
+    cursor: move;
+    float: left;
+    height: 1.7em;
+    margin-left: -1em;
+    overflow: hidden;
+    text-decoration: none;
+  }
+}
+
+.dynoblock-region {
+  .dyno-add-block{
+    width: 100%;
+    padding: 10px 0px;
+  }
+  .dynoblock{
+    position: relative;
+    clear: both;
+  }
+}
+
+.dynoblock-body {
+  width:100%;
+}
+
+.dynoblock-title {
+  
+}
+
+.dynoblock.active {
+  position: relative;
+  min-height: 25px;
+  cursor: pointer;
+}
+
+.dynoblock-actions {
+  position: absolute;
+  top: -20px;
+  right: 0px;
+}
+
+
+.dynoblock-form {
+  padding-top: 20px;
+  padding-bottom:20px;
+  float: left;
+  width:100%;
+  .dynoblock-form-container{
+    float:left;
+  }
+  .form-item{
+    float:left;
+    width:100% !important;
+  }
+  .dynoblock-form-actions{
+    clear: both;
+    width: 100%;
+    float: left;
+  }
+  .dyno-token-tree{
+    width:100%;
+    float: left;
+    clear: both;
+  }
+  .dyno-condition{
+    width:100%;
+  }
+  .dyno-weight{
+    width: 100%;
+  }
+}

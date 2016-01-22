@@ -13,6 +13,11 @@ define('CRM_PASSWORD', 'Honda388!'); // password of a CRM user
 
 function tweaks_init(){
 	//drupal_add_js(drupal_get_path('module', 'tweaks') . '/js/tweaks.form.js');
+	drupal_add_js(drupal_get_path('module', 'tweaks') .'/js/slider.js');
+	drupal_add_js(drupal_get_path('module', 'tweaks') .'/js/menu.js');
+	if(drupal_is_front_page()){
+  	drupal_add_js(drupal_get_path('module', 'tweaks') .'/js/services.js');
+	}
 }
 
 
@@ -162,19 +167,6 @@ class BitrixApi {
 
 
 function tweaks_node_view_alter(&$build){
-	if(!empty($build['#bundle']) && $build['#bundle'] == 'landing_page'){
-		//$build['field_features']
-		if(!empty($build['field_features'])){
-			$children = array_intersect_key($build['field_features'], array_flip(element_children($build['field_features'])));
-			if(isset($children)){
-				foreach($children as $delta => $val){
-					$markup  = '<li class="feature-li">';
-					$markup .= '<span class="glyphicon glyphicon-ok"></span>';
-					$markup .= $val['#markup'];
-					$markup .= '</li>';
-					$build['field_features'][$delta]['#markup'] = $markup;
-				}
-			}
-		}
-	}
+	if(!empty($build['#bundle']) && $build['#bundle'] == 'page'){
+  }
 }

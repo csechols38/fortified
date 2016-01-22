@@ -1,0 +1,934 @@
+<?php
+  
+
+interface DynoBlockForm{
+  public function init();
+  public function build($form_state = array());
+  public function formSubmit(&$form_state);
+  public function render();
+}
+
+
+interface DynoBlockLayout{
+  public function init($values);
+  public function preRender($values);
+  public function render();
+}
+
+
+/**
+ * implements hook_init()
+ */
+function bt_dynoblock_init(){
+  if(user_access('use dynoblocks')){
+    drupal_add_library('system', 'drupal.ajax');
+    drupal_add_library('system', 'ui');
+    //drupal_add_js(drupal_get_path('module', 'bt_dynoblock') .'/js/bt_dynoblock_v2.js');
+    drupal_add_js(drupal_get_path('module', 'bt_dynoblock') .'/js/bt_dynoblock.js', array('scope' => 'footer', 'weight' => 100));
+    drupal_add_css(drupal_get_path('module', 'bt_dynoblock') .'/css/bt_dynoblock.css.less');
+  }
+}
+
+/**
+ * implements hook_init()
+ */
+function bt_dynoblock_permission() {
+  return array(
+    'use dynoblocks' => array(
+      'title' => t('Use dynoblocks'),
+      'description' => t('Edit and create Dynoblock content.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function bt_dynoblock_menu() {
+
+  $items['dynoblock/generate/%'] = array(
+    'page callback' => 'bt_dynoblock_generate_form',
+    'page arguments' => array(2),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['dynoblock/selector'] = array(
+    'page callback' => 'bt_dynoblock_layouts_selector',
+    'page arguments' => array(),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['dynoblock/save/%'] = array(
+    'page callback' => 'bt_dynoblock_block_save',
+    'page arguments' => array(2),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['dynoblock/remove/%/%'] = array(
+    'page callback' => 'bt_dynoblock_block_remove',
+    'page arguments' => array(2, 3),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['dynoblock/edit/%/%'] = array(
+    'page callback' => 'bt_dynoblock_block_edit',
+    'page arguments' => array(2, 3),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  
+  $items['dynoblock/update/%/%'] = array(
+    'page callback' => 'bt_dynoblock_update_block',
+    'page arguments' => array(2, 3),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  
+  $items['dynoblock/condition'] = array(
+    'page callback' => 'bt_dynoblock_condition_callback',
+    'page arguments' => array(),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+
+# TODO, MAKE THIS SO OTHER MODULES CAN IMPLEMENT FORMS
+function bt_dynoblock_dynoblock_blocks(){
+  return array(
+    'default' => array(
+      'id' => 'default',
+      'label' => 'Default',
+      'layout' => array(
+        'file' => 'bt_dynoblocks', // the relative path of this file to the module implmenting it
+        'handler' => 'DynoBlockDefaultLayout',
+      ),
+      'form' => array(
+        'file' => 'bt_dynoblocks', // the relative path of this file to the module implmenting it
+        'handler' => 'DynoBlockDefaultForm',
+      ),
+    ),
+  );
+}
+
+
+
+/**
+ * implments hook_form()
+ */
+function bt_dynoblock_form($form = array(), &$form_state, $plugin_form){
+  if(!empty($form_state['rebuild']) && !empty($form_state['input']['layout_id'])){
+    $layout = _bt_dynoblock_find_form_handler($form_state['input']['layout_id']);
+    if($layout){
+      $layout->rebuild = TRUE;
+      $layout->init()->build($form_state);
+      $plugin_form = array_replace($plugin_form, $layout->form);
+    }
+  }
+  return $plugin_form;
+}
+
+function bt_dynoblock_form_ajax_callback($form, &$form_state){
+  $layout = $form_state['input']['layout_id'];
+  $layout = _bt_dynoblock_find_form_handler($layout);
+  if($layout){
+    $result = $layout->ajaxCallback($form, $form_state);
+    if(!empty($result['return_element'])){
+      return $result['return_element'];
+    } else if(!empty($result['commands'])){
+      print ajax_render($result['commands']);
+      drupal_exit();
+    }
+  }
+}
+
+function bt_dynoblock_form_ajax_submit($form, &$form_state){
+  $form_state['rebuild'] = TRUE;
+  $layout = $form_state['input']['layout_id'];
+  $layout = _bt_dynoblock_find_form_handler($layout);
+  if($layout){
+    $layout->ajaxSubmit($form, $form_state);
+  }
+}
+
+
+function bt_dynoblocks_load_dynoblock_selectors(){
+  $blocks = array();
+  foreach (module_implements('dynoblock_blocks') as $module) {
+    $function = $module . '_dynoblock_blocks';
+    $block = $function();
+    foreach($block as &$b){
+      $b['module'] = $module;
+    }
+    $blocks += $block;
+  }
+  return $blocks;
+}
+
+function bt_dynoblock_layouts_selector(){
+  $blocks = bt_dynoblocks_load_dynoblock_selectors();
+  $selector = '';
+  $selector .= '<div class="btn-group">';
+  $selector .='<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Add Dynamic Block <span class="caret"></span></button>';
+  $selector .= '<ul class="dropdown-menu">';
+  foreach($blocks as $id => $item){
+    $selector .= '<li><a class="dynoblock-layout" data-dyno-lid="'.$id.'" href="#">'.$item['label'].'</a></li>';
+  }
+  $selector .= '</ul>';
+  $selector .= '</div>';
+  print $selector;
+}
+
+function _bt_dynoblock_add_token_support(){
+  $token['container'] = array(
+  	'#type' => 'container',
+  	'#attributes' => array(
+  		'class' => array('dyno-token-tree'),
+  	),
+  );
+  $token['container']['tokens'] = array(
+    		'#type' => 'fieldset',
+    		'#title' => t('Tokens'),
+    		'#collapsed' => TRUE,
+    		'#collapsible' => TRUE,
+    	);
+    $token['container']['tokens']['tree'] = array(
+      '#theme' => 'token_tree',
+      '#token_types' => array('webmem_primary', 'webmem_household', 'webmem_membership', 'webmem_options'),
+      '#global_types' => FALSE,
+      '#click_insert' => FALSE,
+    );
+  return $token;
+}
+
+
+function bt_dynoblock_condition_callback(){
+  $condition = _bt_dynoblock_condition_form();
+  print drupal_json_encode(render($condition));
+}
+
+function _bt_dynoblock_condition_form($values = array()){
+  $condition['conditions'] = array(
+  	'#type' => 'container',
+  	'#attributes' => array(
+  		'class' => array('dyno-condition'),
+  	),
+  );
+  $condition['conditions']['label'] = array(
+  	'#type' => 'markup',
+  	'#markup' => '<label>Conditions</label>',
+  );
+  $condition['conditions']['description'] = array(
+  	'#type' => 'markup',
+  	'#markup' => '<p>Enter a conditional that needs to return true for a this block to be displayed. If no conditionals are added, this block will display by default.',
+  );
+  $condition['conditions']['condition_token'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Token'),
+    '#description' => t('Token for conditional.'),
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#name' => 'condition_token',
+    '#value' => isset($values['condition_token']) ? $values['condition_token'] : '',
+  );
+  
+  $condition['conditions']['operators'] = array(
+    '#type' => 'select',
+    '#title' => t('Operator'),
+    '#multiple' => TRUE,
+    '#description' => t('The description appears usually below the item.'),
+    '#options' => array(
+      '==' => '==',
+      '===' => '===',
+      '!=' => '!=',
+      '!==' => '!==',
+      '<' => '<',
+      '>' => '>',
+      '<=' => '<=',
+      '>=' => '>=',
+    ),
+    '#default_value' => -1,
+    '#name' => 'condition_operator',
+    '#value' => !empty($values['condition_operator']) ? $values['condition_operator'] : '',
+  );
+  $condition['conditions']['value'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Token value'),
+    '#size' => 20,
+    '#maxlength' => 255,
+    '#name' => 'condition_value',
+    '#value' => isset($values['condition_value']) ? $values['condition_value'] : '',
+  );
+  return $condition;
+}
+
+
+function _bt_dynoblock_weight_form($values = array()){
+  $form['weight'] = array(
+  	'#type' => 'container',
+  	'#attributes' => array(
+  		'class' => array('dyno-weight'),
+  	),
+  );
+  $form['weight']['weight'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Weight'),
+    '#description' => t('The title you enter here appears on the page.'),
+    '#size' => 40,
+    '#maxlength' => 255,
+    '#value' => isset($values['weight']) ? $values['weight'] : 0,
+  );
+  return $form;
+}
+
+function bt_dynoblock_update_block($rid, $bid){
+  $result = FALSE;
+  if($block = DynoBlocksDb::getBlock($rid, $bid)){
+    foreach($_POST as $key => $value){
+      $block[$key] = $value;
+    }
+    $record = array(
+      'rid' => $rid,
+      'bid' => $bid,
+      'data' => serialize($block)
+    );
+    $result = DynoBlocksDb::update($record);
+  }
+  print drupal_json_encode(array('result' => $result));
+}
+
+
+function bt_dynoblock_block_save($method){
+  # TODO make this secure
+  $output = array('saved' => FALSE);
+  $form = _bt_dynoblock_find_form_handler(!empty($_POST['layout_id']) ? $_POST['layout_id'] : NULL);
+  if($form){
+    $form->formSubmit($_POST);
+    $record = array (
+      "rid" => $_POST['rid'],
+      "bid" => $_POST['bid'],
+      "data" => serialize($_POST),
+      'weight' => NULL,
+      'conditions' => serialize(array(
+        'condition_token' => !empty($_POST['condition_token']) ? !empty($_POST['condition_token']) : NULL,
+        'condition_operator' => !empty($_POST['condition_operator']) ? !empty($_POST['condition_operator']) : NULL,
+        'condition_value' => !empty($_POST['condition_value']) ? !empty($_POST['condition_value']) : NULL,
+      ))
+    );
+    if($method == 'edit'){
+      $action = DynoBlocksDb::update($record);
+    } else {
+      $action = DynoBlocksDb::save($record);
+    }
+    if($action){
+      $layout = _bt_dynoblock_find_layout_handler($_POST['layout_id']);
+      if($layout){
+        $html = $layout->init($_POST)->render();
+        if($method == 'new'){
+          $html = DynoBlocks::renderNewBlock($_POST, $html);
+        } else {
+          $html = DynoBlocks::wrapEditBlock($html);
+        }
+        $output = array(
+          'saved' => TRUE,
+          'bid' => $_POST['bid'],
+          'rid' => $_POST['rid'],
+          'handler' => $_POST['layout_id'],
+          'block' => $html,
+        );
+      }
+    }
+  }
+  print drupal_json_encode($output);
+}
+
+
+
+function bt_dynoblock_block_edit($rid, $bid){
+  if($bid){
+    $block = DynoBlocksDb::getBlock($rid, $bid);
+    if($block){
+      $form = _bt_dynoblock_find_form_handler($block['layout_id']);
+      if($form){
+        $form->init()->build($block);
+        $form->form += _bt_dynoblock_condition_form($block);
+        $form->form += _bt_dynoblock_weight_form($block);
+        $form->form += _bt_dynoblock_add_token_support();
+        $createForm = drupal_get_form('bt_dynoblock_form', $form->form);
+        $html = render($createForm);
+        $commands = ajax_render(array());
+        _bt_dynoblocks_get_commands($_POST['data'], $commands);
+        print drupal_json_encode(compact('html', 'commands'));
+        drupal_exit();
+      }
+    }
+  }
+}
+
+
+function bt_dynoblock_block_remove($rid, $bid){
+  $db = new DynoBlocksDb();
+  $removed = DynoBlocksDb::remove($rid, $bid);
+  print drupal_json_encode(array('removed' => $removed));
+}
+
+
+function _bt_dynoblock_find_form_handler($type){
+  $forms = bt_dynoblocks_load_dynoblock_selectors(); # TODO, MAKE THIS SO OTHER MODULES CAN IMPLEMENT FORMS
+  foreach($forms as $id => $form){
+    if($id == $type){
+      if(module_load_include('inc', $form['module'], $form['form']['file'])){
+        return $form = new $form['form']['handler']();
+      }
+    }
+  }
+}
+
+function _bt_dynoblock_find_layout_handler($type){
+  $forms = bt_dynoblocks_load_dynoblock_selectors(); # TODO, MAKE THIS SO OTHER MODULES CAN IMPLEMENT FORMS
+  foreach($forms as $id => $layout){
+    if($id == $type){
+      if(module_load_include('inc', $layout['module'], $layout['layout']['file'])){
+        return $layout = new $layout['layout']['handler'](); 
+      }
+    }
+  }
+}
+
+function _bt_dynoblock_find_layout_path($type){
+  $layout = bt_dynoblocks_load_dynoblock_selectors(); # TODO, MAKE THIS SO OTHER MODULES CAN IMPLEMENT FORMS
+  foreach($layout as $id => $block){
+    if($id == $type){
+      $path = $block['layout']['file'];
+      $dirs = explode('/', $path);
+      if(count($dirs) > 1){
+        array_pop($dirs);
+        $path = implode('/', $dirs);
+      }
+       return drupal_get_path('module', $block['module']) . "/$path";
+    }
+  }
+}
+
+
+function bt_dynoblock_generate_form($type){
+  $form = _bt_dynoblock_find_form_handler($type);
+  if($form){
+    $form->init()->build();
+    $form->form += _bt_dynoblock_condition_form($block);
+    $form->form += _bt_dynoblock_weight_form($block);
+    $form->form += _bt_dynoblock_add_token_support();
+    $createForm = drupal_get_form('bt_dynoblock_form', $form->form);
+    $html = render($createForm);
+    $commands = ajax_render(array());
+    _bt_dynoblocks_get_commands($_POST['data'], $commands);
+    print drupal_json_encode(compact('html', 'commands'));
+    drupal_exit();
+  } else {
+    return fALSE;
+  }
+}
+
+
+function _bt_dynoblocks_get_commands($data, &$commands){
+  $files = array();
+  $commands = array();
+  foreach (array('css', 'js') as $type) {
+    // It is highly suspicious if $_POST['ajax_page_state'][$type] is empty,
+    // since the base page ought to have at least one JS file and one CSS file
+    // loaded. It probably indicates an error, and rather than making the page
+    // reload all of the files, instead we return no new files.
+    if (empty($data['ajax_page_state'][$type])) {
+      $items[$type] = array();
+    }
+    else {
+      $function = 'drupal_add_' . $type;
+      $items[$type] = $function();
+      drupal_alter($type, $items[$type]);
+      // @todo Inline CSS and JS items are indexed numerically. These can't be
+      //   reliably diffed with array_diff_key(), since the number can change
+      //   due to factors unrelated to the inline content, so for now, we strip
+      //   the inline items from Ajax responses, and can add support for them
+      //   when drupal_add_css() and drupal_add_js() are changed to use a hash
+      //   of the inline content as the array key.
+      foreach ($items[$type] as $key => $item) {
+        if (is_numeric($key)) {
+          unset($items[$type][$key]);
+        }
+      }
+      foreach($items[$type] as $key => $f_data){
+        if(!array_key_exists($key, $data['ajax_page_state'][$type])){
+          $files[$type][$key] = $f_data;
+        }
+      }
+    }
+  }
+  
+  // Render the HTML to load these files, and add AJAX commands to insert this
+  // HTML in the page. We pass TRUE as the $skip_alter argument to prevent the
+  // data from being altered again, as we already altered it above. Settings are
+  // handled separately, afterwards.
+  if (isset($files['js']['settings'])) {
+    unset($files['js']['settings']);
+  }
+  $styles = drupal_get_css($files['css'], TRUE);
+  $scripts_footer = drupal_get_js('footer', $files['js'], TRUE);
+  $scripts_header = drupal_get_js('header', $files['js'], TRUE);
+
+  $extra_commands = array();
+  if (!empty($styles)) {
+    $extra_commands[] = ajax_command_add_css($styles);
+  }
+  if (!empty($scripts_header)) {
+    $extra_commands[] = ajax_command_prepend('head', $scripts_header);
+  }
+  if (!empty($scripts_footer)) {
+    $extra_commands[] = ajax_command_append('body', $scripts_footer);
+  }
+  if (!empty($extra_commands)) {
+    $commands = array_merge($extra_commands, $commands);
+  }
+
+  // Now add a command to merge changes and additions to Drupal.settings.
+  $scripts = drupal_add_js();
+  if (!empty($scripts['settings'])) {
+    $settings = $scripts['settings'];
+    array_unshift($commands, ajax_command_settings(drupal_array_merge_deep_array($settings['data']), TRUE));
+  }
+  
+  
+  return $files;
+  
+}
+
+
+class DynoBlockForms {
+  
+  public static function ajaxCallback(){
+    return 'bt_dynoblock_form_ajax_callback';
+  }
+  
+  public static function ajaxSubmit(){
+    return 'bt_dynoblock_form_ajax_submit';
+  }
+  
+}
+
+class DynoBlocksDb {
+
+  static $db_table = 'bt_dynoblock';
+
+  public static function save($record){
+    return drupal_write_record(self::$db_table, $record);
+  }
+
+  public static function update($record){
+    return db_update(self::$db_table)
+    ->condition('rid', $record['rid'])
+    ->condition('bid', $record['bid'])
+    ->fields(array(
+        'data' => $record['data'],
+      ))
+    ->execute();
+  }
+
+  public static function getBlocks($rid){
+    $query = db_select(self::$db_table, 'd');
+    $query->fields('d', array('rid','bid', 'data'))
+    ->orderBy('bid', 'ASC')
+    ->condition('rid', $rid, '=');
+    $result = $query->execute();
+    $results = array();
+    while($record = $result->fetchAssoc()) {
+      $record['data'] = unserialize($record['data']);
+      $results[] = $record;
+    }
+    return $results;
+  }
+
+  public static function getBlock($rid, $bid){
+    $query = db_select(self::$db_table, 'd');
+    $query->fields('d', array('rid','bid', 'data'))
+    ->orderBy('bid', 'ASC')
+    ->condition('rid', $rid, '=')
+    ->condition('bid', $bid, '=');
+    $result = $query->execute()->fetchAssoc();
+    if($result){
+      return unserialize($result['data']);
+    } else {
+      return FALSE;
+    }
+  }
+
+  public static function remove($rid, $bid){
+    $delete = db_delete(self::$db_table)
+    ->condition('rid', $rid)
+    ->condition('bid', $bid)
+    ->execute();
+    return $delete;
+  }
+
+}
+
+class DynoBlocks {
+
+  static $blocks = array();
+
+  public static function getBlocks($rid){
+    return self::$blocks = DynoBlocksDb::getBlocks($rid);
+  }
+
+  public static function displayBlocks($blocks){
+    $render = array();
+    foreach($blocks as $delta => $block){
+      $data = $block['data'];
+      $layout = _bt_dynoblock_find_layout_handler($data['layout_id']);
+      if($layout && self::isDisplayable($data)){
+        $path = _bt_dynoblock_find_layout_path($data['layout_id']);
+        $layout->directory = $path;
+        $html = $layout->init($data)->preRender($data);
+        $render[$delta] = array(
+          '#type' => 'container',
+          '#weight' => isset($data['weight']) ? $data['weight'] : 0,
+          '#attributes' => array(
+            'class' => array('dynoblock'),
+            'data-dyno-bid' => $data['bid'],
+            'data-dyno-rid' => $data['rid'],
+            'data-dyno-handler' => $data['layout_id'],
+          ),
+        );
+        $render[$delta]['content'] = array(
+        	'#type' => 'container',
+        	'#attributes' => array(
+        		'class' => array('dynoblock-content'),
+        	),
+        );
+        $render[$delta]['content'] += $html;
+      }
+    }
+    return $render;
+  }
+
+  public static function renderNewBlock($block, $html){
+    $render['container'] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array('dynoblock'),
+        'data-dyno-bid' => $block['bid'],
+        'data-dyno-rid' => $block['rid'],
+        'data-dyno-handler' => $block['layout_id'],
+      ),
+    );
+    $render['container']['content'] = array(
+        	'#type' => 'container',
+        	'#attributes' => array(
+        		'class' => array('dynoblock-content'),
+        	),
+        );
+    $render['container']['content']['block'] = array(
+      '#type' => 'markup',
+      '#markup' => $html,
+    );
+    return render($render);
+  }
+  
+  public static function wrapEditBlock($html){
+    $wrapper = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array('dynoblock-content'),
+      ),
+    );
+    $wrapper[] = array(
+    	'#type' => 'markup',
+    	'#markup' => $html,
+    );
+    return render($wrapper);
+  }
+
+  public static function dynoRegion($rid){
+    return array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array('dynoblock-region'),
+        'data-dyno-rid' => $rid,
+      ),
+    );
+  }
+
+  public static function renderDynoBlocks($rid){
+    $blocks = self::getBlocks($rid);
+    $blocks = self::displayBlocks($blocks);
+    return array(
+      '#type' => 'markup',
+      '#markup'=> render($blocks)
+    );
+  }
+  
+  public static function isDisplayable($block){
+    global $user;
+    $is_admin = FALSE;
+    if (is_array($user->roles) && in_array('administrator', array_values($user->roles))) {
+      $is_admin = TRUE;
+    }
+    if(!empty($block['condition_token']) && !$is_admin){
+      $value = $block['condition_value'];
+      $token_value = token_replace($block['condition_token']);
+      switch ($block['condition_operator']) {
+        case '==':
+          if($token_value == $value){
+            return TRUE;
+          }
+          break;
+        case '===':
+          if($token_value === $value){
+            return TRUE;
+          }
+          break;
+        case '!=':
+          if($token_value != $value){
+            return TRUE;
+          }
+          break;
+        case '!==':
+          if($token_value !== $value){
+            return TRUE;
+          }
+          break;
+        case '<':
+          if($token_value  < $value){
+            return TRUE;
+          }
+          break;
+        case '>':
+          if($token_value > $value){
+            return TRUE;
+          }
+          break;
+        case '<=':
+          if($token_value <= $value){
+            return TRUE;
+          }
+          break;
+        case '>=':
+          if($token_value >= $value){
+            return TRUE;
+          }
+          break;
+      }
+    } else {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * hook_field_info
+ *
+ * @return unknown
+ */
+function bt_dynoblock_field_info() {
+	return array(
+		'bt_dynoblock' => array(
+			'label' => t( 'DynoBlock' ),
+			'description' => t("DynoBlock Field"),
+			'default_widget' => 'bt_dynoblock_widget',
+			'default_formatter' => 'bt_dynoblock_formatter',
+			'settings' => array('type' => array()),
+		),
+	);
+}
+
+
+/**
+ * hook_field_validate
+ *
+ * @param unknown $entity_type
+ * @param unknown $entity
+ * @param unknown $field
+ * @param unknown $instance
+ * @param unknown $langcode
+ * @param unknown $items
+ * @param unknown $errors      (reference)
+ */
+function bt_dynoblock_field_validate( $entity_type, $entity, $field, $instance, $langcode, $items, &$errors ) {
+  
+}
+
+
+/**
+ * hook_field_is_empty
+ *
+ * @param unknown $item
+ * @param unknown $field
+ * @return unknown
+ */
+function bt_dynoblock_field_is_empty( $item, $field ) {
+	$is_empty = empty($item['id']) ? TRUE : FALSE;
+	return $is_empty;
+}
+
+
+/**
+ * hook_field_widget_info
+ *
+ * @return unknown
+ */
+function bt_dynoblock_field_widget_info() {
+	return array(
+		'bt_dynoblock_widget' => array(
+			'label' => t('DynoBlock Field'),
+			'field types' => array('bt_dynoblock'),
+		),
+	);
+}
+
+
+/**
+ *
+ *
+ * @param unknown $form       (reference)
+ * @param unknown $form_state (reference)
+ * @param unknown $field
+ * @param unknown $instance
+ * @param unknown $langcode
+ * @param unknown $items
+ * @param unknown $delta
+ * @param unknown $element
+ * @return unknown
+ */
+function bt_dynoblock_field_widget_form( &$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element ) {
+	switch ( $instance['widget']['type'] ) {
+	case 'bt_dynoblock_widget':
+		
+		$element['id'] = array(
+		  '#type' => 'textfield',
+		  '#title' => t('ID'),
+		  '#description' => t('the unique id.'),
+		  '#default_value' => !empty($items[$delta]['id']) ? $items[$delta]['id'] : '',
+		  '#required' => TRUE,
+		  '#size' => 40,
+		  '#maxlength' => 255,
+		);
+		
+		$element['type'] = array(
+		  '#type' => 'select',
+		  '#title' => t('Type'),
+		  '#options' => array('block' => 'Block', 'region' => 'Region'),
+		  '#default_value' => -1,
+		  '#default_value' => !empty($items[$delta]['type']) ? $items[$delta]['type'] : 'block',
+		  '#attributes' => array(
+  		  'class' => array('dynoblock-type'),
+		  ),
+		);
+		
+		break;
+
+	}
+	return $element;
+}
+
+
+
+
+/**
+ * Implements hook_field_presave().
+ *
+ * @param unknown $entity_type
+ * @param unknown $entity
+ * @param unknown $field
+ * @param unknown $instance
+ * @param unknown $langcode
+ * @param unknown $items       (reference)
+ */
+function bt_dynoblock_field_presave( $entity_type, $entity, $field, $instance, $langcode, &$items ) {
+	foreach($items as $delta => &$value){
+		$items[$delta] = $value;
+	}
+}
+
+
+/**
+ * hook_field_formatter_info()
+ *
+ * @return unknown
+ */
+function bt_dynoblock_field_formatter_info() {
+	$formatters = array();
+	$formatters['bt_dynoblock_formatter'] = array(
+		'label' => t('Dynoblock Formatter'),
+		'field types' => array('bt_dynoblock'),
+		'settings' => array('settings' => array()),
+	);
+	return $formatters;
+}
+
+
+function bt_dynoblock_field_settings_form($field, $instance, $has_data) {
+  return array();
+}
+
+
+/**
+ * Implements hook_field_formatter_settings_form
+ *
+ * @parameter $form_state
+ */
+function bt_dynoblock_field_formatter_settings_summary($field, $instance, $view_mode) {
+	return '';
+}
+
+
+/**
+ * hook_field_formatter_view()
+ *
+ * @param unknown $entity_type
+ * @param unknown $entity
+ * @param unknown $field
+ * @param unknown $instance
+ * @param unknown $langcode
+ * @param unknown $items
+ * @param unknown $display
+ * @return unknown
+ */
+function bt_dynoblock_field_formatter_view( $entity_type, $entity, $field, $instance, $langcode, $items, $display ) {
+	$element = array();
+	switch ( $display['type'] ) {
+	case 'bt_dynoblock_formatter':
+		$settings = $display['settings'];
+		foreach($items as $delta => $value){
+			$element[$delta]['wrapper'] = array(
+				'#type' => 'container',
+				'#attributes' => array(
+					'class' => array('dynoblock-field'),
+				),
+			);
+      // testing dyno blocks
+      $element[$delta]['wrapper']['dynoblock'] = DynoBlocks::dynoRegion($value['id']);
+      $element[$delta]['wrapper']['dynoblock']['blocks'] = DynoBlocks::renderDynoBlocks($value['id']);
+		}
+		break;
+	}
+	return $element;
+}

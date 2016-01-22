@@ -1,0 +1,87 @@
+<?php
+  
+/**
+ * implments hook_dynoblock_blocks
+ */
+function fss_dynoblocks_dynoblock_blocks(){
+  return array(
+    'media_object' => array(
+      'id' => 'media_object',
+      'label' => 'Bootstrap Media Object',
+      'layout' => array(
+        'file' => 'blocks/bootstrap/media/media', // the relative path of this file to the module implmenting it
+        'handler' => 'BootstrapMediaObject__display',
+      ),
+      'form' => array(
+        'file' => 'blocks/bootstrap/media/media', // the relative path of this file to the module implmenting it
+        'handler' => 'BootstrapMediaObject__form',
+      ),
+    ),
+    'bootstrap_list_group' => array(
+      'id' => 'bootstrap_list_group',
+      'label' => 'Bootstrap List Group',
+      'layout' => array(
+        'file' => 'blocks/bootstrap/list_group/list_group', // the relative path of this file to the module implmenting it
+        'handler' => 'BootstrapListGroup__display',
+      ),
+      'form' => array(
+        'file' => 'blocks/bootstrap/list_group/list_group', // the relative path of this file to the module implmenting it
+        'handler' => 'BootstrapListGroup__form',
+      ),
+    ),
+    'icon_list' => array(
+      'id' => 'icon_list',
+      'label' => 'Icon List w/ Text',
+      'layout' => array(
+        'file' => 'blocks/custom/icon_list/icon_list', // the relative path of this file to the module implmenting it
+        'handler' => 'CustomIconList__display',
+      ),
+      'form' => array(
+        'file' => 'blocks/custom/icon_list/icon_list', // the relative path of this file to the module implmenting it
+        'handler' => 'CustomIconList__form',
+      ),
+    ),
+    'image_overlay' => array(
+      'id' => 'image_overlay',
+      'label' => 'Image w/ Text Overlay',
+      'layout' => array(
+        'file' => 'blocks/custom/image_overlay/image_overlay', // the relative path of this file to the module implmenting it
+        'handler' => 'ImageOverlay__display',
+      ),
+      'form' => array(
+        'file' => 'blocks/custom/image_overlay/image_overlay', // the relative path of this file to the module implmenting it
+        'handler' => 'ImageOverlay__form',
+      ),
+    ),
+    'image_divider' => array(
+      'id' => 'image_divider',
+      'label' => 'Image Divider',
+      'layout' => array(
+        'file' => 'blocks/custom/image_divider/image_divider', // the relative path of this file to the module implmenting it
+        'handler' => 'ImageDivider__display',
+      ),
+      'form' => array(
+        'file' => 'blocks/custom/image_divider/image_divider', // the relative path of this file to the module implmenting it
+        'handler' => 'ImageDivider__form',
+      ),
+    ),
+    'bootstrap_jumbotron' => array(
+      'id' => 'bootstrap_jumbotron',
+      'label' => 'Bootstrap Jumbotron',
+      'layout' => array(
+        'file' => 'fss_dynoblocks', // the relative path of this file to the module implmenting it
+        'handler' => 'BootstrapJumbotron__display',
+      ),
+      'form' => array(
+        'file' => 'fss_dynoblocks', // the relative path of this file to the module implmenting it
+        'handler' => 'BootstrapJumbotron__from',
+      ),
+    ),
+  );
+}
+
+function fss_dynoblocks_node_view_alter(&$build){
+	if(!empty($build['#bundle']) && $build['#bundle'] == 'page'){
+  	
+  }
+}

@@ -1,0 +1,12 @@
+.dyno-media{
+  padding:15px 0px;
+}
+
+.dyno-media .media-body{
+  width:100%;
+}
+@media only screen and (max-width: 480px) {
+  .dyno-media img{
+    width:100%;
+  }
+}

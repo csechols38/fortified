@@ -74,85 +74,78 @@
  */
 ?>
 <div id="page">
+  
 
-	<!---------- Top Menu --------->
 	<div id="topbar" class="topbar">
-		<div class="container container-medium">
+		<div class="container">
 			<?php if (!empty($page['top_menu'])): ?>
 				<?php print render($page['top_menu']); ?>
 			<?php endif; ?>
 		</div>
-	</div>
-	<!-------- /. Top Menu ------->
+	</div>		
 	
-	<!-------- Bottom Menu -------->
-	<div class="sticky-wrapper">
-		<div class="bottom-menu">
-			
-			<!-------- Sticky -------->
-			<?php if (!empty($page['sticky'])): ?>
-				<div class="sticky" id="sticky">
-					<div class="container">
-						<div class="navbar-sticky">
-							<?php print render($page['sticky']); ?>
-						</div>
-					</div>
-				</div>
-			<?php endif; ?>
-				<!-------- /. Sticky -------->
-			
-			<div class="container-medium">
-				
-				<?php if ($logo): ?>
-					<div class="navbar-brand-logo">
-					 	<a class="logo scroll" href="/" title="<?php print t('Home'); ?>">
-					  	<img src="<?php print $logo; ?>" alt="<?php print t('Home'); ?>" />
-					  </a>
-					</div>
-				 <?php endif; ?>
-				 
-				 
-				 <!-- btn-navbar -->
-				<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-				 	<span class="sr-only">Toggle navigation</span>
-				 	<span class="icon-bar"></span>
-				 	<span class="icon-bar"></span>
-				 	<span class="icon-bar"></span>
-				 </button>		
-				 <!-- ./btn-navbar -->
-			  		
-					
-					<?php if (!empty($primary_nav) || !empty($secondary_nav) || !empty($page['navigation'])): ?>
-						<div class="collapse navbar-collapse">
-							<nav role="navigation">
-								<?php if (!empty($primary_nav)): ?>
-									<?php print render($primary_nav); ?>
-								<?php endif; ?>
-							</nav>
-						</div>
-					<?php endif; ?>
-					
-					
-				 <!-- call us in nav -->
-				 <div class="call-us-nav">
-					 <div class="call-us-wrapper">
-							<a href="tel:+15208866419">
-								<div class="call-header">Call Us Today</div>
-								<div class="phone-number">
-									<span class="glyphicon glyphicon-earphone menu-phone-icon"></span>
-									<span>(520) 886-6419</span>
-								</div>
-							</a>
-					 </div>
-					</div>
-					<!-- ./call us in nav -->
-				 
-				</div>
-			</div>
+	
+  <header id="navbar" role="banner" class="navbar navbar container-fluid">
+    <div class="container">
+      <div class="navbar-header">
+        <?php if ($logo): ?>
+        <a class="logo navbar-btn pull-left" href="<?php print $front_page; ?>" title="<?php print t('Home'); ?>">
+          <img src="<?php print $logo; ?>" alt="<?php print t('Home'); ?>" />
+        </a>
+        <?php endif; ?>
+  
+        <?php if (!empty($site_name)): ?>
+        <a class="name navbar-brand" href="<?php print $front_page; ?>" title="<?php print t('Home'); ?>"><?php print $site_name; ?></a>
+        <?php endif; ?>
+
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+      </div>
+
+      <?php if (!empty($primary_nav) || !empty($secondary_nav) || !empty($page['navigation'])): ?>
+        <div class="navbar-collapse collapse">
+          <nav role="navigation">
+            <?php if (!empty($primary_nav)): ?>
+              <?php print render($primary_nav); ?>
+            <?php endif; ?>
+          </nav>
+        </div>
+      <?php endif; ?>
+      
+      <div class="call-us-nav">
+        <div class="call-us-wrapper">
+         	<a href="tel:+15208866419">
+         		<div class="call-header">Call Us Today</div>
+         		<div class="phone-number">
+         			<span class="glyphicon glyphicon-earphone menu-phone-icon"></span>
+         			<span>(520) 886-6419</span>
+         		</div>
+         	</a>
+        </div>
 		</div>
-		<!------- /. Bottom Menu ------>
-	
-		<!-------- Content top -------->
+  </div>
+</header>
+			
+  <?php if (!empty($page['sticky'])): ?>
+  	<div class="sticky-wrapper">
+			<div class="sticky" id="sticky">
+				<div class="container">
+		  		<div class="navbar-sticky">
+		  			<?php print render($page['sticky']); ?>
+		  		</div>
+		  	</div>
+		  </div>
+  	</div>
+  <?php endif; ?>
+		
+		
+		
+		
 	<div id="page-top">
 		<?php if (!empty($page['top'])): ?>
 			<div class="page-top-fullwidth">
@@ -160,7 +153,6 @@
 			</div>
 		<?php endif; ?>
 	</div>
-	<!------ /. Content top ------>
 	
 	<?php if (!empty($page['cont_head_featured'])): ?>
 		<div class="content-head-featured">
@@ -169,20 +161,19 @@
 	<?php endif; ?>
 	
 	<?php if (!empty($page['cont_above_full'])): ?>
-		<div class="content-above-fullwidth">
-			<?php print render($page['cont_above_full']); ?>
-		</div> 
+		<div class="cont-above container-fluid">
+			<div class="row">
+					<?php print render($page['cont_above_full']); ?>
+			</div>
+	  </div> 
 	<?php endif; ?>
 	
-	
 	<div class="main-container container">
-		
 		<div class="row">
-	
 			<?php if (!empty($page['sidebar_first'])): ?>
 				<aside class="col-sm-3" role="complementary">
 					<?php print render($page['sidebar_first']); ?>
-				</aside>  <!-- /#sidebar-first -->
+				</aside>
 			<?php endif; ?>
 			
 			<div<?php print $content_column_class; ?>>
@@ -191,7 +182,7 @@
 				<?php endif; ?>
 				<a id="main-content"></a>
 				<?php print render($title_prefix); ?>
-				<?php if (!empty($title)): ?>
+				<?php if (!empty($title) && !drupal_is_front_page()): ?>
 					<h1 class="page-header"><?php print $title; ?></h1>
 				<?php endif; ?>
 				<?php print render($title_suffix); ?>
@@ -213,28 +204,40 @@
 			<?php if (!empty($page['sidebar_second'])): ?>
 				<aside class="col-sm-3" role="complementary">
 					<?php print render($page['sidebar_second']); ?>
-				</aside>  <!-- /#sidebar-second -->
+				</aside> 
 			<?php endif; ?>
-		
 		</div>
 	</div>
 	
 	<?php if (!empty($page['cont_below_full'])): ?>
-		<div class="content-below-fullwidth">
-			<?php print render($page['cont_below_full']); ?>
-		</div>  <!-- /#sidebar-first -->
+		<div class="content-below">
+  		<div class="container">
+  			<div class="row">
+          <div class="col-sm-12">
+  		  		<?php print render($page['cont_below_full']); ?>
+  				</div>
+  		  </div>
+  		</div>
+		</div> 
 	<?php endif; ?>
 	
-	<footer class="text-center" id="footer-main">
-		<div class="footer-above">
-			<div class="container">
-				<?php print render($page['footer']); ?>
-			</div>
+	<div class="footer-top">
+		<div class="container">
+  		<div class="row">
+    		<div class="col-sm-12">
+          <?php print render($page['footer']); ?>
+    		</div>
+  		</div>
 		</div>
-		<div class="footer-below">
-			<div class="container">
-				<?php print render($page['copyright']); ?>
-			</div>
+	</div>
+	
+	<div class="footer-below">
+		<div class="container">
+  		<div class="row">
+    		<div class="col-sm-12">
+          <?php print render($page['copyright']); ?>
+    		</div>
+  		</div>
 		</div>
-	</footer>
+	</div>
 </div>

@@ -1,0 +1,51 @@
+.icon-list-group .icon-list .icon{
+  font-size: 62px;
+  color: #e4701e;
+}
+
+.icon-list-group {
+  position: relative;
+  float: left;
+}
+
+.icon-list{
+  overflow: hidden;
+}
+
+.icon-list-head{
+  margin: 10px 0px;
+}
+
+.icon-list-head .list-group-item-heading {
+    margin-top: 0px;
+}
+
+.icon-list-group .media{
+  padding: 10px 0px;
+}
+
+.icon-list-group .media-body{
+  padding-left: 30px;
+}
+.icon-list-group .icon-body{
+  width:80%;
+}
+
+
+@media only screen and (max-width: 480px) {
+  .icon-media .icon-body{
+    width:100%;
+  }
+  .icon-media .media-body{
+    padding-left: 15px;
+  }
+}
+
+@media only screen and (max-width: 767px) {	
+  .icon-media .media-body{
+    float: none !important;
+  }
+  .icon-media .icon-body{
+    width:100%;
+  }
+}
